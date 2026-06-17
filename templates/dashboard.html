@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>PhishSim Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries" data-no-warning></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary": "#135bec",
+              "background-light": "#f6f6f8",
+              "background-dark": "#101622",
+            },
+            fontFamily: {
+              "display": ["Inter", "sans-serif"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+      .material-symbols-outlined {
+        font-variation-settings:
+        'FILL' 0,
+        'wght' 400,
+        'GRAD' 0,
+        'opsz' 24
+      }
+    </style>
+</head>
+<body class="font-display bg-background-light dark:bg-background-dark">
+<div class="relative flex h-auto min-h-screen w-full flex-col group/design-root overflow-x-hidden">
+<div class="layout-container flex h-full grow flex-col">
+<header class="sticky top-0 z-10 flex items-center justify-between whitespace-nowrap border-b border-solid border-gray-200/80 dark:border-white/10 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm px-4 sm:px-6 lg:px-8 py-3">
+<div class="flex items-center gap-4 text-gray-800 dark:text-white">
+<div class="size-6 text-primary">
+<svg fill="none" viewbox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+<path clip-rule="evenodd" d="M12.0799 24L4 19.2479L9.95537 8.75216L18.04 13.4961L18.0446 4H29.9554L29.96 13.4961L38.0446 8.75216L44 19.2479L35.92 24L44 28.7521L38.0446 39.2479L29.96 34.5039L29.9554 44H18.0446L18.04 34.5039L9.95537 39.2479L4 28.7521L12.0799 24Z" fill="currentColor" fill-rule="evenodd"></path>
+</svg>
+</div>
+<h2 class="text-lg font-bold leading-tight tracking-[-0.015em]">PhishSim Dashboard</h2>
+</div>
+<div class="hidden md:flex flex-1 justify-center gap-8">
+<div class="flex items-center gap-9">
+<a class="text-gray-900 dark:text-white text-sm font-medium leading-normal hover:text-primary dark:hover:text-primary" href="{{ url_for('dashboard') }}">Dashboard</a>
+<a class="text-gray-600 dark:text-gray-400 text-sm font-medium leading-normal hover:text-primary dark:hover:text-primary" href="{{ url_for('campaigns.create_campaign_step1') }}">Campaigns</a>
+<a class="text-gray-600 dark:text-gray-400 text-sm font-medium leading-normal hover:text-primary dark:hover:text-primary" href="{{ url_for('dashboard') }}#reporting">Reporting</a>
+<a class="text-gray-600 dark:text-gray-400 text-sm font-medium leading-normal hover:text-primary dark:hover:text-primary" href="{{ url_for('dashboard') }}#settings">Settings</a>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<a href="{{ url_for('campaigns.create_campaign_step1') }}" class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors">
+  <span class="truncate">+ New Campaign</span>
+</a>
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" data-alt="User profile picture" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuAhD9dHie7EKeCh3fsbXje9aoxDqL9ZX1RfQ-RYBQ2QM2A81fpTO23YVnt7eem4dRMIO0MMq2hdFXAXKZy2TrRb7k9FOQvGORvmc3ezjyR9SawqhWudCgUpLN0vRLobobPrk37Xy4mYAiNbcnrn3wPulXfYksdWJ5Ylo0tyaKuclqXrP47JM98_WuRmW-exy6e8q6KuxIqU-qvKfbqc72YKeFXdo4gbrDGi1HR5na2P2LKsQNdLtVnm5jnaBfHsMh8m5kiC4WTmleRj");'></div>
+</div>
+</header>
+<main class="flex-1 px-4 sm:px-6 lg:px-8 py-8 lg:py-10">
+<div class="layout-content-container mx-auto flex max-w-6xl flex-col gap-8">
+<div class="flex flex-wrap justify-between gap-3">
+<div class="flex min-w-72 flex-col gap-2">
+<p class="text-gray-900 dark:text-white text-4xl font-black leading-tight tracking-[-0.033em]">Dashboard Overview</p>
+<p class="text-gray-600 dark:text-[#9da6b9] text-base font-normal leading-normal">An at-a-glance overview of your phishing simulation campaigns.</p>
+</div>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+<div class="flex min-w-[158px] flex-1 flex-col gap-2 rounded-xl p-6 bg-white dark:bg-white/5 border border-gray-200/80 dark:border-white/10">
+<p class="text-gray-800 dark:text-white text-base font-medium leading-normal">Total Campaigns</p>
+<p class="text-gray-900 dark:text-white tracking-tight text-3xl font-bold leading-tight">128</p>
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-sm text-green-500">arrow_upward</span>
+<p class="text-green-500 text-base font-medium leading-normal">+5%</p>
+</div>
+</div>
+<div class="flex min-w-[158px] flex-1 flex-col gap-2 rounded-xl p-6 bg-white dark:bg-white/5 border border-gray-200/80 dark:border-white/10">
+<p class="text-gray-800 dark:text-white text-base font-medium leading-normal">Active Campaigns</p>
+<p class="text-gray-900 dark:text-white tracking-tight text-3xl font-bold leading-tight">12</p>
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-sm text-green-500">arrow_upward</span>
+<p class="text-green-500 text-base font-medium leading-normal">+2%</p>
+</div>
+</div>
+<div class="flex min-w-[158px] flex-1 flex-col gap-2 rounded-xl p-6 bg-white dark:bg-white/5 border border-gray-200/80 dark:border-white/10">
+<p class="text-gray-800 dark:text-white text-base font-medium leading-normal">Overall Click Rate</p>
+<p class="text-gray-900 dark:text-white tracking-tight text-3xl font-bold leading-tight">8.2%</p>
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-sm text-red-500">arrow_downward</span>
+<p class="text-red-500 dark:text-[#fa6238] text-base font-medium leading-normal">-1.1%</p>
+</div>
+</div>
+<div class="flex min-w-[158px] flex-1 flex-col gap-2 rounded-xl p-6 bg-white dark:bg-white/5 border border-gray-200/80 dark:border-white/10">
+<p class="text-gray-800 dark:text-white text-base font-medium leading-normal">Overall Open Rate</p>
+<p class="text-gray-900 dark:text-white tracking-tight text-3xl font-bold leading-tight">34.7%</p>
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-sm text-green-500">arrow_upward</span>
+<p class="text-green-500 text-base font-medium leading-normal">+2.5%</p>
+</div>
+</div>
+</div>
+<div class="flex flex-wrap gap-4 py-2">
+<div class="flex min-w-72 flex-1 flex-col gap-2 rounded-xl border border-gray-200/80 dark:border-white/10 p-6 bg-white dark:bg-white/5">
+<p class="text-gray-800 dark:text-white text-base font-medium leading-normal">Campaign Performance Trends</p>
+<p class="text-gray-900 dark:text-white tracking-tight text-[32px] font-bold leading-tight truncate">Click Rates</p>
+<div class="flex gap-2">
+<p class="text-gray-500 dark:text-[#9da6b9] text-base font-normal leading-normal">Last 30 Days</p>
+<p class="text-green-500 text-base font-medium leading-normal">+1.2%</p>
+</div>
+<div class="flex min-h-[180px] flex-1 flex-col gap-8 py-4">
+<svg fill="none" height="148" preserveaspectratio="none" viewbox="-3 0 478 150" width="100%" xmlns="http://www.w3.org/2000/svg">
+<path d="M0 109C18.1538 109 18.1538 21 36.3077 21C54.4615 21 54.4615 41 72.6154 41C90.7692 41 90.7692 93 108.923 93C127.077 93 127.077 33 145.231 33C163.385 33 163.385 101 181.538 101C199.692 101 199.692 61 217.846 61C236 61 236 45 254.154 45C272.308 45 272.308 121 290.462 121C308.615 121 308.615 149 326.769 149C344.923 149 344.923 1 363.077 1C381.231 1 381.231 81 399.385 81C417.538 81 417.538 129 435.692 129C453.846 129 453.846 25 472 25V149H326.769H0V109Z" fill="url(#paint0_linear_chart)"></path>
+<path d="M0 109C18.1538 109 18.1538 21 36.3077 21C54.4615 21 54.4615 41 72.6154 41C90.7692 41 90.7692 93 108.923 93C127.077 93 127.077 33 145.231 33C163.385 33 163.385 101 181.538 101C199.692 101 199.692 61 217.846 61C236 61 236 45 254.154 45C272.308 45 272.308 121 290.462 121C308.615 121 308.615 149 326.769 149C344.923 149 344.923 1 363.077 1C381.231 1 381.231 81 399.385 81C417.538 81 417.538 129 435.692 129C453.846 129 453.846 25 472 25" stroke="#135bec" stroke-linecap="round" stroke-width="3"></path>
+<defs>
+<lineargradient gradientunits="userSpaceOnUse" id="paint0_linear_chart" x1="236" x2="236" y1="1" y2="149">
+<stop stop-color="#135bec" stop-opacity="0.3"></stop>
+<stop offset="1" stop-color="#135bec" stop-opacity="0"></stop>
+</lineargradient>
+</defs>
+</svg>
+<div class="flex justify-around">
+<p class="text-gray-500 dark:text-[#9da6b9] text-[13px] font-bold leading-normal tracking-[0.015em]">Week 1</p>
+<p class="text-gray-500 dark:text-[#9da6b9] text-[13px] font-bold leading-normal tracking-[0.015em]">Week 2</p>
+<p class="text-gray-500 dark:text-[#9da6b9] text-[13px] font-bold leading-normal tracking-[0.015em]">Week 3</p>
+<p class="text-gray-500 dark:text-[#9da6b9] text-[13px] font-bold leading-normal tracking-[0.015em]">Week 4</p>
+</div>
+</div>
+</div>
+</div>
+<div class="flex flex-col">
+<h2 class="text-gray-900 dark:text-white text-[22px] font-bold leading-tight tracking-[-0.015em] px-0 pb-3 pt-5">Recent Campaign Activity</h2>
+<div class="overflow-x-auto rounded-xl border border-gray-200/80 dark:border-white/10 bg-white dark:bg-white/5">
+<table class="min-w-full text-left text-sm">
+<thead class="border-b border-gray-200/80 dark:border-white/10">
+<tr>
+<th class="px-6 py-4 font-medium text-gray-800 dark:text-white" scope="col">Campaign Name</th>
+<th class="px-6 py-4 font-medium text-gray-800 dark:text-white" scope="col">Status</th>
+<th class="px-6 py-4 font-medium text-gray-800 dark:text-white" scope="col">Start Date</th>
+<th class="px-6 py-4 font-medium text-gray-800 dark:text-white" scope="col">Click Rate</th>
+</tr>
+</thead>
+<tbody>
+<tr class="border-b border-gray-200/80 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/10 transition-colors cursor-pointer">
+<td class="whitespace-nowrap px-6 py-4 font-medium text-gray-800 dark:text-white">Q3 Security Test</td>
+<td class="whitespace-nowrap px-6 py-4">
+<span class="inline-flex items-center rounded-full bg-green-100 dark:bg-green-500/20 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:text-green-300">Completed</span>
+</td>
+<td class="whitespace-nowrap px-6 py-4 text-gray-600 dark:text-gray-400">2023-09-15</td>
+<td class="whitespace-nowrap px-6 py-4 text-gray-600 dark:text-gray-400">12%</td>
+</tr>
+<tr class="border-b border-gray-200/80 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/10 transition-colors cursor-pointer">
+<td class="whitespace-nowrap px-6 py-4 font-medium text-gray-800 dark:text-white">Finance Dept Awareness</td>
+<td class="whitespace-nowrap px-6 py-4">
+<span class="inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-500/20 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:text-blue-300">Active</span>
+</td>
+<td class="whitespace-nowrap px-6 py-4 text-gray-600 dark:text-gray-400">2023-10-02</td>
+<td class="whitespace-nowrap px-6 py-4 text-gray-600 dark:text-gray-400">4%</td>
+</tr>
+<tr class="border-b border-gray-200/80 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/10 transition-colors cursor-pointer">
+<td class="whitespace-nowrap px-6 py-4 font-medium text-gray-800 dark:text-white">New Hire Onboarding Sim</td>
+<td class="whitespace-nowrap px-6 py-4">
+<span class="inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-500/20 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:text-blue-300">Active</span>
+</td>
+<td class="whitespace-nowrap px-6 py-4 text-gray-600 dark:text-gray-400">2023-10-01</td>
+<td class="whitespace-nowrap px-6 py-4 text-gray-600 dark:text-gray-400">7.5%</td>
+</tr>
+<tr class="border-b border-gray-200/80 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/10 transition-colors cursor-pointer">
+<td class="whitespace-nowrap px-6 py-4 font-medium text-gray-800 dark:text-white">CEO Impersonation Drill</td>
+<td class="whitespace-nowrap px-6 py-4">
+<span class="inline-flex items-center rounded-full bg-green-100 dark:bg-green-500/20 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:text-green-300">Completed</span>
+</td>
+<td class="whitespace-nowrap px-6 py-4 text-gray-600 dark:text-gray-400">2023-08-20</td>
+<td class="whitespace-nowrap px-6 py-4 text-orange-500 dark:text-amber-400 font-medium">18%</td>
+</tr>
+<tr class="hover:bg-gray-50 dark:hover:bg-white/10 transition-colors cursor-pointer">
+<td class="whitespace-nowrap px-6 py-4 font-medium text-gray-800 dark:text-white">IT Admin Password Reset</td>
+<td class="whitespace-nowrap px-6 py-4">
+<span class="inline-flex items-center rounded-full bg-green-100 dark:bg-green-500/20 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:text-green-300">Completed</span>
+</td>
+<td class="whitespace-nowrap px-6 py-4 text-gray-600 dark:text-gray-400">2023-08-05</td>
+<td class="whitespace-nowrap px-6 py-4 text-gray-600 dark:text-gray-400">9%</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</main>
+</div>
+</div>
+</body></html>

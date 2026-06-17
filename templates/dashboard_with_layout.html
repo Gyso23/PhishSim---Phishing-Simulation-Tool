@@ -1,0 +1,413 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - PhishSim{% endblock %}
+
+{% block content %}
+<div class="space-y-6 animate-fade-in">
+  <div class="flex justify-between items-center">
+    <div>
+      <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100">Security Dashboard</h1>
+      <p class="text-slate-500 dark:text-slate-400">Real-time overview of simulation campaigns</p>
+    </div>
+    <div class="flex items-center gap-3">
+      <select id="campaignFilter" onchange="loadCampaignStats()" class="glass-panel border border-slate-200 dark:border-white/10 rounded-lg px-4 py-2 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50">
+        <option value="all" class="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">All Campaigns</option>
+        {% for c in all_campaigns %}
+        <option value="{{ c.id }}" class="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">{{ c.name }}</option>
+        {% endfor %}
+      </select>
+      <button onclick="exportSBUStats()" class="flex items-center px-4 py-2 bg-emerald-600/90 hover:bg-emerald-500 text-white rounded-lg font-medium transition-all shadow-lg shadow-emerald-900/20 btn-hover" title="Export SBU Statistics">
+        <i class="fas fa-file-excel mr-2"></i> Export SBU
+      </button>
+      <button onclick="exportDashboard()" class="flex items-center px-4 py-2 bg-slate-700/50 hover:bg-slate-600/50 text-white rounded-lg font-medium transition-all border border-white/10 btn-hover">
+        <i class="fas fa-download mr-2"></i> Export
+      </button>
+      <a href="{{ url_for('campaigns.create_campaign_step1') }}" class="flex items-center px-5 py-2 bg-primary hover:bg-blue-500 text-white rounded-lg font-medium shadow-lg shadow-blue-500/30 transition-all hover:scale-105 btn-hover">
+        <i class="fas fa-rocket mr-2"></i> Launch Campaign
+      </a>
+    </div>
+  </div>
+
+  <!-- Top Level Stat Cards -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+    <div class="glass-card p-5 rounded-xl border border-slate-200 dark:border-white/10 shadow-lg hover:border-blue-500/50 transition-all card-hover">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider">Total Targeted</p>
+          <p id="statTargeted" class="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-1">{{ total_sent }}</p>
+        </div>
+        <div class="p-2 bg-blue-500/20 rounded-lg shadow-inner shadow-blue-500/10">
+          <i class="fas fa-users text-blue-400 text-xl"></i>
+        </div>
+      </div>
+    </div>
+
+    <div class="glass-card p-5 rounded-xl border border-slate-200 dark:border-white/10 shadow-lg hover:border-orange-500/50 transition-all card-hover">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider">Clicked</p>
+          <p id="statClicked" class="text-2xl font-bold text-orange-500 dark:text-orange-400 mt-1">{{ total_clicked }}</p>
+        </div>
+        <div class="p-2 bg-orange-500/20 rounded-lg shadow-inner shadow-orange-500/10">
+          <i class="fas fa-mouse-pointer text-orange-500 dark:text-orange-400 text-xl"></i>
+        </div>
+      </div>
+    </div>
+
+    <div class="glass-card p-5 rounded-xl border border-slate-200 dark:border-white/10 shadow-lg hover:border-purple-500/50 transition-all card-hover">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider">Reported</p>
+          <p id="statReported" class="text-2xl font-bold text-purple-500 dark:text-purple-400 mt-1">{{ total_reported or 0 }}</p>
+        </div>
+        <div class="p-2 bg-purple-500/20 rounded-lg shadow-inner shadow-purple-500/10">
+          <i class="fas fa-flag text-purple-500 dark:text-purple-400 text-xl"></i>
+        </div>
+      </div>
+    </div>
+
+    <div class="glass-card p-5 rounded-xl border border-slate-200 dark:border-white/10 shadow-lg hover:border-red-500/50 transition-all card-hover">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider">Compromised</p>
+          <p id="statCompromised" class="text-2xl font-bold text-red-500 dark:text-red-400 mt-1">{{ total_compromised or 0 }}</p>
+        </div>
+        <div class="p-2 bg-red-500/20 rounded-lg shadow-inner shadow-red-500/10">
+          <i class="fas fa-user-slash text-red-500 dark:text-red-400 text-xl"></i>
+        </div>
+      </div>
+    </div>
+
+    <div class="glass-card p-5 rounded-xl border border-slate-200 dark:border-white/10 shadow-lg hover:border-amber-500/50 transition-all card-hover">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider">Click Rate</p>
+          <p id="statClickRate" class="text-2xl font-bold text-amber-500 dark:text-amber-400 mt-1">{{ click_rate }}%</p>
+        </div>
+        <div class="p-2 bg-amber-500/20 rounded-lg shadow-inner shadow-amber-500/10">
+          <i class="fas fa-percentage text-amber-500 dark:text-amber-400 text-xl"></i>
+        </div>
+      </div>
+    </div>
+
+    <div class="glass-card p-5 rounded-xl border border-slate-200 dark:border-white/10 shadow-lg hover:border-emerald-500/50 transition-all card-hover">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider">Open Rate</p>
+          <p id="statOpenRate" class="text-2xl font-bold text-emerald-500 dark:text-emerald-400 mt-1">{{ open_rate }}%</p>
+        </div>
+        <div class="p-2 bg-emerald-500/20 rounded-lg shadow-inner shadow-emerald-500/10">
+          <i class="fas fa-envelope-open text-emerald-500 dark:text-emerald-400 text-xl"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SBU Statistics Table -->
+  <div class="glass-card rounded-xl border border-slate-200 dark:border-white/10 shadow-lg overflow-hidden">
+    <div class="p-6 border-b border-slate-200 dark:border-white/10 flex justify-between items-center bg-slate-50/50 dark:bg-white/5">
+      <div>
+        <h3 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Statistics by Subsidiary / SBU</h3>
+        <p class="text-sm text-slate-500 dark:text-slate-400">Click a row to drill down and see individual targets</p>
+      </div>
+      <div class="flex gap-2">
+        <button onclick="collapseAllRows()" class="px-3 py-1 text-xs bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300 rounded transition-colors border border-slate-200 dark:border-white/10">
+          <i class="fas fa-compress-alt mr-1"></i> Collapse All
+        </button>
+      </div>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-left text-sm text-slate-500 dark:text-slate-400" id="sbuTable">
+        <thead class="bg-slate-100 dark:bg-black/20 text-slate-700 dark:text-slate-200 uppercase font-medium text-xs">
+          <tr>
+            <th class="px-6 py-4">Subsidiary / SBU</th>
+            <th class="px-6 py-4 text-center">Targeted</th>
+            <th class="px-6 py-4 text-center">Clicked</th>
+            <th class="px-6 py-4 text-center">Reported</th>
+            <th class="px-6 py-4 text-center">Compromised</th>
+            <th class="px-6 py-4 text-center">Click Rate</th>
+            <th class="px-6 py-4 text-center">Report Rate</th>
+            <th class="px-6 py-4 text-center">Compromise Rate</th>
+            <th class="px-6 py-4 text-center">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="sbuTableBody" class="divide-y divide-slate-200 dark:divide-white/5">
+          <!-- Filled by JavaScript -->
+        </tbody>
+        <tfoot class="bg-slate-200 dark:bg-black/30 font-semibold text-slate-900 dark:text-slate-100">
+          <tr>
+            <td class="px-6 py-4">Total</td>
+            <td id="totalTargeted" class="px-6 py-4 text-center">0</td>
+            <td id="totalClicked" class="px-6 py-4 text-center">0</td>
+            <td id="totalReported" class="px-6 py-4 text-center">0</td>
+            <td id="totalCompromised" class="px-6 py-4 text-center">0</td>
+            <td id="totalClickRate" class="px-6 py-4 text-center">0%</td>
+            <td id="totalReportRate" class="px-6 py-4 text-center">0%</td>
+            <td id="totalCompromiseRate" class="px-6 py-4 text-center">0%</td>
+            <td class="px-6 py-4"></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+  <!-- Recent Campaigns Quick View -->
+  <div class="glass-card rounded-xl border border-slate-200 dark:border-white/10 shadow-lg overflow-hidden">
+    <div class="p-6 border-b border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/5">
+      <h3 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Recent Campaigns</h3>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-left text-sm text-slate-500 dark:text-slate-400">
+        <thead class="bg-slate-100 dark:bg-black/20 text-slate-700 dark:text-slate-200 uppercase font-medium text-xs">
+          <tr>
+            <th class="px-6 py-4">Campaign Name</th>
+            <th class="px-6 py-4">Status</th>
+            <th class="px-6 py-4">Launch Date</th>
+            <th class="px-6 py-4 text-right">Sent / Failed</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-200 dark:divide-white/5">
+          {% for c in campaigns %}
+          <tr class="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer" onclick="window.location='/campaigns/{{ c.id }}/results'">
+            <td class="px-6 py-4 font-medium text-slate-900 dark:text-slate-200">{{ c.name }}</td>
+            <td class="px-6 py-4">
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                {% if c.status == 'running' %}bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20
+                {% elif c.status == 'completed' %}bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20
+                {% else %}bg-slate-500/10 text-slate-600 dark:text-slate-400 border border-slate-500/20{% endif %}">
+                {% if c.status == 'running' %}<span class="w-1.5 h-1.5 bg-emerald-500 dark:bg-emerald-400 rounded-full mr-1.5 animate-pulse"></span>{% endif %}
+                {{ c.status|capitalize }}
+              </span>
+            </td>
+            <td class="px-6 py-4">{{ c.created_at.strftime('%Y-%m-%d') if c.created_at else 'N/A' }}</td>
+            <td class="px-6 py-4 text-right">
+              {{ c.sent_count or 0 }} / {{ c.failed_count or 0 }}
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="4" class="px-6 py-12 text-center text-slate-500 dark:text-slate-400">
+              No campaigns yet. <a href="{{ url_for('campaigns.create_campaign_step1') }}" class="text-primary hover:underline">Create your first campaign</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+// Store data for drill-downs
+let sbuData = {};
+let currentDrillDownSBU = null;
+
+// Initial data from server
+const initialStats = {{ sbu_stats | tojson | safe if sbu_stats else '{}' }};
+
+document.addEventListener('DOMContentLoaded', function() {
+  if (Object.keys(initialStats).length > 0) {
+    renderSBUTable(initialStats);
+  } else {
+    loadCampaignStats();
+  }
+});
+
+function loadCampaignStats() {
+  const campaignId = document.getElementById('campaignFilter').value;
+  fetch(`/api/dashboard/stats?campaign_id=${campaignId}`)
+    .then(r => r.json())
+    .then(data => {
+      sbuData = data.sbu_stats || {};
+      
+      // Update top cards
+      document.getElementById('statTargeted').textContent = data.total_targeted || 0;
+      document.getElementById('statClicked').textContent = data.total_clicked || 0;
+      document.getElementById('statReported').textContent = data.total_reported || 0;
+      document.getElementById('statCompromised').textContent = data.total_compromised || 0;
+      document.getElementById('statClickRate').textContent = (data.click_rate || 0).toFixed(2) + '%';
+      document.getElementById('statOpenRate').textContent = (data.open_rate || 0).toFixed(2) + '%';
+      
+      renderSBUTable(sbuData);
+    })
+    .catch(err => console.error('Error loading stats:', err));
+}
+
+function renderSBUTable(stats) {
+  const tbody = document.getElementById('sbuTableBody');
+  tbody.innerHTML = '';
+  
+  let grandTotal = { targeted: 0, clicked: 0, reported: 0, compromised: 0 };
+  
+  const sbus = Object.keys(stats).sort();
+  
+  sbus.forEach(sbu => {
+    const s = stats[sbu];
+    const targeted = s.targeted || 0;
+    const clicked = s.clicked || 0;
+    const reported = s.reported || 0;
+    const compromised = s.compromised || 0;
+    
+    grandTotal.targeted += targeted;
+    grandTotal.clicked += clicked;
+    grandTotal.reported += reported;
+    grandTotal.compromised += compromised;
+    
+    const clickRate = targeted > 0 ? (clicked / targeted * 100).toFixed(2) : '0.00';
+    const reportRate = targeted > 0 ? (reported / targeted * 100).toFixed(2) : '0.00';
+    const compromiseRate = targeted > 0 ? (compromised / targeted * 100).toFixed(2) : '0.00';
+    
+    const row = document.createElement('tr');
+    row.className = 'hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer';
+    row.onclick = () => showDrillDown(sbu);
+    row.innerHTML = `
+      <td class="px-6 py-4 font-medium text-slate-900 dark:text-slate-200">${escapeHtml(sbu || 'Unknown')}</td>
+      <td class="px-6 py-4 text-center">${targeted}</td>
+      <td class="px-6 py-4 text-center text-orange-600 dark:text-orange-400 font-semibold">${clicked}</td>
+      <td class="px-6 py-4 text-center text-purple-600 dark:text-purple-400">${reported}</td>
+      <td class="px-6 py-4 text-center text-red-600 dark:text-red-400">${compromised}</td>
+      <td class="px-6 py-4 text-center ${parseFloat(clickRate) > 30 ? 'text-red-600 dark:text-red-400' : 'text-slate-600 dark:text-slate-300'}">${clickRate}%</td>
+      <td class="px-6 py-4 text-center">${reportRate}%</td>
+      <td class="px-6 py-4 text-center ${parseFloat(compromiseRate) > 30 ? 'text-red-600 dark:text-red-400' : 'text-slate-600 dark:text-slate-300'}">${compromiseRate}%</td>
+      <td class="px-6 py-4 text-center">
+        <button onclick="event.stopPropagation(); showDrillDown('${escapeHtml(sbu)}')" class="text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300">
+          <i class="fas fa-search"></i>
+        </button>
+      </td>
+    `;
+    tbody.appendChild(row);
+  });
+  
+  // Update totals
+  document.getElementById('totalTargeted').textContent = grandTotal.targeted;
+  document.getElementById('totalClicked').textContent = grandTotal.clicked;
+  document.getElementById('totalReported').textContent = grandTotal.reported;
+  document.getElementById('totalCompromised').textContent = grandTotal.compromised;
+  document.getElementById('totalClickRate').textContent = grandTotal.targeted > 0 ? (grandTotal.clicked / grandTotal.targeted * 100).toFixed(2) + '%' : '0%';
+  document.getElementById('totalReportRate').textContent = grandTotal.targeted > 0 ? (grandTotal.reported / grandTotal.targeted * 100).toFixed(2) + '%' : '0%';
+  document.getElementById('totalCompromiseRate').textContent = grandTotal.targeted > 0 ? (grandTotal.compromised / grandTotal.targeted * 100).toFixed(2) + '%' : '0%';
+}
+
+function showDrillDown(sbu) {
+  currentDrillDownSBU = sbu;
+  const campaignId = document.getElementById('campaignFilter').value;
+  
+  document.getElementById('drillDownTitle').textContent = sbu || 'Unknown SBU';
+  document.getElementById('drillDownModal').classList.remove('hidden');
+  
+  fetch(`/api/dashboard/drilldown?campaign_id=${campaignId}&sbu=${encodeURIComponent(sbu)}`)
+    .then(r => r.json())
+    .then(data => {
+      const tbody = document.getElementById('drillDownBody');
+      tbody.innerHTML = '';
+      
+      data.targets.forEach(t => {
+        const row = document.createElement('tr');
+        row.className = 'hover:bg-slate-50 dark:hover:bg-white/5';
+        row.innerHTML = `
+          <td class="px-4 py-3 font-medium text-slate-900 dark:text-slate-200">${escapeHtml(t.first_name || '')} ${escapeHtml(t.last_name || '')}</td>
+          <td class="px-4 py-3">${escapeHtml(t.email)}</td>
+          <td class="px-4 py-3 text-center">${t.opened ? '<i class="fas fa-check text-emerald-600 dark:text-emerald-400"></i>' : '<i class="fas fa-minus text-slate-400 dark:text-slate-500"></i>'}</td>
+          <td class="px-4 py-3 text-center">${t.clicked ? '<i class="fas fa-check text-orange-600 dark:text-orange-400"></i>' : '<i class="fas fa-minus text-slate-400 dark:text-slate-500"></i>'}</td>
+          <td class="px-4 py-3 text-center">
+            <input type="checkbox" ${t.reported ? 'checked' : ''} onchange="updateTargetStatus(${t.id}, 'reported', this.checked)" class="w-4 h-4 rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-purple-600 dark:text-purple-500 focus:ring-purple-500">
+          </td>
+          <td class="px-4 py-3 text-center">
+            <input type="checkbox" ${t.compromised ? 'checked' : ''} onchange="updateTargetStatus(${t.id}, 'compromised', this.checked)" class="w-4 h-4 rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-red-600 dark:text-red-500 focus:ring-red-500">
+          </td>
+          <td class="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">${t.clicked_at || '-'}</td>
+        `;
+        tbody.appendChild(row);
+      });
+    })
+    .catch(err => console.error('Drill down error:', err));
+}
+
+function closeDrillDown() {
+  document.getElementById('drillDownModal').classList.add('hidden');
+  currentDrillDownSBU = null;
+  loadCampaignStats(); // Refresh to pick up any changes
+}
+
+function updateTargetStatus(resultId, field, value) {
+  fetch('/api/dashboard/update_result', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ result_id: resultId, field: field, value: value })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (!data.success) toastError('Failed to update: ' + data.error);
+  })
+  .catch(err => toastError('Error: ' + err));
+}
+
+function collapseAllRows() {
+  // Just a placeholder for future expansion row functionality
+}
+
+function exportDashboard() {
+  const campaignId = document.getElementById('campaignFilter').value;
+  window.location = `/api/dashboard/export?campaign_id=${campaignId}`;
+}
+
+function exportSBUStats() {
+  const campaignId = document.getElementById('campaignFilter').value;
+  window.location = `/api/dashboard/export_sbu?campaign_id=${campaignId}`;
+}
+
+function exportDrillDown() {
+  const campaignId = document.getElementById('campaignFilter').value;
+  window.location = `/api/dashboard/export?campaign_id=${campaignId}&sbu=${encodeURIComponent(currentDrillDownSBU || '')}`;
+}
+
+function escapeHtml(text) {
+  if (!text) return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+</script>
+{% endblock %}
+
+{% block modals %}
+<!-- Drill Down Modal -->
+<div id="drillDownModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in">
+  <div class="glass-panel rounded-xl border border-slate-200 dark:border-white/10 w-full max-w-5xl mx-4 max-h-[85vh] flex flex-col shadow-2xl bg-white dark:bg-slate-900">
+    <div class="p-6 border-b border-slate-200 dark:border-white/10 flex justify-between items-center shrink-0 bg-slate-50 dark:bg-white/5">
+      <div>
+        <h3 id="drillDownTitle" class="text-xl font-bold text-slate-900 dark:text-slate-100">SBU Details</h3>
+        <p class="text-sm text-slate-500 dark:text-slate-400">Individual target results</p>
+      </div>
+      <button onclick="closeDrillDown()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xl transition-colors">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="flex-1 overflow-auto p-6">
+      <table class="w-full text-left text-sm text-slate-500 dark:text-slate-400">
+        <thead class="bg-slate-100 dark:bg-black/20 text-slate-700 dark:text-slate-200 uppercase font-medium text-xs sticky top-0 backdrop-blur-md">
+          <tr>
+            <th class="px-4 py-3">Name</th>
+            <th class="px-4 py-3">Email</th>
+            <th class="px-4 py-3 text-center">Opened</th>
+            <th class="px-4 py-3 text-center">Clicked</th>
+            <th class="px-4 py-3 text-center">Reported</th>
+            <th class="px-4 py-3 text-center">Compromised</th>
+            <th class="px-4 py-3">Clicked At</th>
+          </tr>
+        </thead>
+        <tbody id="drillDownBody" class="divide-y divide-slate-200 dark:divide-white/5">
+        </tbody>
+      </table>
+    </div>
+    <div class="p-4 border-t border-slate-200 dark:border-white/10 flex justify-end gap-3 shrink-0 bg-slate-50 dark:bg-white/5">
+      <button onclick="exportDrillDown()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-medium transition-colors shadow-lg shadow-emerald-900/20">
+        <i class="fas fa-download mr-2"></i> Export CSV
+      </button>
+      <button onclick="closeDrillDown()" class="px-4 py-2 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 dark:bg-white/10 dark:hover:bg-white/20 dark:text-slate-200 dark:border-white/10 rounded-lg text-sm font-medium transition-colors">
+        Close
+      </button>
+    </div>
+  </div>
+</div>
+{% endblock %}

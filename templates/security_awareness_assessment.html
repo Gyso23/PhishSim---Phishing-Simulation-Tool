@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Awareness Assessment</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .assessment-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+            max-width: 800px;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #e94560 0%, #c23a50 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .warning-box {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px;
+            text-align: center;
+        }
+
+        .warning-box h3 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+
+        .warning-box p {
+            color: #856404;
+        }
+
+        .question-section {
+            padding: 30px;
+        }
+
+        .question {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            border-left: 4px solid #e94560;
+        }
+
+        .question h3 {
+            color: #1a1a2e;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+
+        .options {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .option {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .option:hover {
+            background: #e3f2fd;
+            border-color: #2196f3;
+        }
+
+        .option input[type="radio"] {
+            margin-right: 15px;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .option label {
+            cursor: pointer;
+            flex: 1;
+        }
+
+        .submit-section {
+            padding: 30px;
+            text-align: center;
+            background: #f8f9fa;
+        }
+
+        .submit-btn {
+            background: linear-gradient(135deg, #e94560 0%, #c23a50 100%);
+            color: white;
+            border: none;
+            padding: 15px 50px;
+            font-size: 1.2rem;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(233, 69, 96, 0.3);
+        }
+
+        .submit-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .footer-note {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        /* Success Message */
+        .success-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .success-message {
+            background: white;
+            border-radius: 20px;
+            padding: 50px;
+            text-align: center;
+            max-width: 500px;
+            animation: popIn 0.5s ease;
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .success-icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+        }
+
+        .success-message h2 {
+            color: #27ae60;
+            margin-bottom: 15px;
+        }
+
+        .success-message p {
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .score-display {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #e94560;
+            margin: 20px 0;
+        }
+
+        /* Loading spinner */
+        .loading {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.9);
+            justify-content: center;
+            align-items: center;
+            z-index: 999;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #e94560;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="loading" id="loadingOverlay">
+        <div class="spinner"></div>
+    </div>
+
+    <div class="success-overlay" id="successOverlay">
+        <div class="success-message">
+            <div class="success-icon">🎉</div>
+            <h2>Assessment Complete!</h2>
+            <p>Thank you for completing the Security Awareness Assessment.</p>
+            <div class="score-display" id="scoreDisplay">Score: 0%</div>
+            <p>Your responses have been recorded. You will receive additional training materials based on your results.</p>
+        </div>
+    </div>
+
+    <div class="assessment-container">
+        <div class="header">
+            <h1>🔒 Security Awareness Assessment</h1>
+            <p>Test your knowledge about phishing and cybersecurity</p>
+        </div>
+
+        <div class="warning-box">
+            <h3>⚠️ This was a simulated phishing email</h3>
+            <p>The email you clicked was part of a security awareness training exercise. Please complete the assessment below to improve your security knowledge.</p>
+        </div>
+
+        <form id="assessmentForm">
+            <!-- Hidden fields for tracking -->
+            <input type="hidden" id="email" name="email" value="">
+            <input type="hidden" id="campaign_id" name="campaign_id" value="">
+            <input type="hidden" id="score" name="score" value="0">
+
+            <div class="question-section">
+                <!-- Question 1 -->
+                <div class="question">
+                    <h3>1. What is the most common sign of a phishing email?</h3>
+                    <div class="options">
+                        <div class="option">
+                            <input type="radio" name="q1" id="q1a" value="wrong1" required>
+                            <label for="q1a">It comes from a known contact</label>
+                        </div>
+                        <div class="option">
+                            <input type="radio" name="q1" id="q1b" value="correct">
+                            <label for="q1b">Urgent requests or threats to take immediate action</label>
+                        </div>
+                        <div class="option">
+                            <input type="radio" name="q1" id="q1c" value="wrong2">
+                            <label for="q1c">The email has a company logo</label>
+                        </div>
+                        <div class="option">
+                            <input type="radio" name="q1" id="q1d" value="wrong3">
+                            <label for="q1d">It was sent during business hours</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Question 2 -->
+                <div class="question">
+                    <h3>2. What should you do if you receive a suspicious email asking for personal information?</h3>
+                    <div class="options">
+                        <div class="option">
+                            <input type="radio" name="q2" id="q2a" value="wrong1" required>
+                            <label for="q2a">Reply asking for more details</label>
+                        </div>
+                        <div class="option">
+                            <input type="radio" name="q2" id="q2b" value="wrong2">
+                            <label for="q2b">Click the link to verify if it's legitimate</label>
+                        </div>
+                        <div class="option">
+                            <input type="radio" name="q2" id="q2c" value="correct">
+                            <label for="q2c">Report it to IT security and delete it</label>
+                        </div>
+                        <div class="option">
+                            <input type="radio" name="q2" id="q2d" value="wrong3">
+                            <label for="q2d">Forward it to colleagues for their opinion</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Question 3 -->
+                <div class="question">
+                    <h3>3. How can you verify if an email from "IT Support" is legitimate?</h3>
+                    <div class="options">
+                        <div class="option">
+                            <input type="radio" name="q3" id="q3a" value="wrong1" required>
+                            <label for="q3a">Check if it has a professional signature</label>
+                        </div>
+                        <div class="option">
+                            <input type="radio" name="q3" id="q3b" value="correct">
+                            <label for="q3b">Contact IT Support through official channels to confirm</label>
+                        </div>
+                        <div class="option">
+                            <input type="radio" name="q3" id="q3c" value="wrong2">
+                            <label for="q3c">Check if it mentions your name</label>
+                        </div>
+                        <div class="option">
+                            <input type="radio" name="q3" id="q3d" value="wrong3">
+                            <label for="q3d">Assume it's real if it looks official</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Question 4 -->
+                <div class="question">
+                    <h3>4. What is a red flag when hovering over a link in an email?</h3>
+                    <div class="options">
+                        <div class="option">
+                            <input type="radio" name="q4" id="q4a" value="correct" required>
+                            <label for="q4a">The URL doesn't match the claimed destination</label>
+                        </div>
+                        <div class="option">
+                            <input type="radio" name="q4" id="q4b" value="wrong1">
+                            <label for="q4b">The link is blue and underlined</label>
+                        </div>
+                        <div class="option">
+                            <input type="radio" name="q4" id="q4c" value="wrong2">
+                            <label for="q4c">The link contains https</label>
+                        </div>
+                        <div class="option">
+                            <input type="radio" name="q4" id="q4d" value="wrong3">
+                            <label for="q4d">The link shows a tooltip</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Question 5 -->
+                <div class="question">
+                    <h3>5. Why do attackers often create a sense of urgency in phishing emails?</h3>
+                    <div class="options">
+                        <div class="option">
+                            <input type="radio" name="q5" id="q5a" value="wrong1" required>
+                            <label for="q5a">To seem more professional</label>
+                        </div>
+                        <div class="option">
+                            <input type="radio" name="q5" id="q5b" value="wrong2">
+                            <label for="q5b">Because they are in a hurry</label>
+                        </div>
+                        <div class="option">
+                            <input type="radio" name="q5" id="q5c" value="correct">
+                            <label for="q5c">To pressure you into acting without thinking</label>
+                        </div>
+                        <div class="option">
+                            <input type="radio" name="q5" id="q5d" value="wrong3">
+                            <label for="q5d">To help you save time</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Question 6 -->
+                <div class="question">
+                    <h3>6. What should you do FIRST if you accidentally clicked a phishing link?</h3>
+                    <div class="options">
+                        <div class="option">
+                            <input type="radio" name="q6" id="q6a" value="wrong1" required>
+                            <label for="q6a">Delete the email and forget about it</label>
+                        </div>
+                        <div class="option">
+                            <input type="radio" name="q6" id="q6b" value="wrong2">
+                            <label for="q6b">Run a virus scan next week</label>
+                        </div>
+                        <div class="option">
+                            <input type="radio" name="q6" id="q6c" value="wrong3">
+                            <label for="q6c">Wait and see if anything happens</label>
+                        </div>
+                        <div class="option">
+                            <input type="radio" name="q6" id="q6d" value="correct">
+                            <label for="q6d">Report it to IT security immediately</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="submit-section">
+                <button type="submit" class="submit-btn" id="submitBtn">Submit Assessment</button>
+            </div>
+        </form>
+
+        <div class="footer-note">
+            <p>This assessment is part of our ongoing security awareness program.</p>
+            <p>Your responses help us improve our training materials.</p>
+        </div>
+    </div>
+
+    <script>
+        // Parse URL parameters to get tracking info
+        function getUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            return {
+                email: params.get('email') || params.get('e') || '',
+                campaign_id: params.get('campaign_id') || params.get('c') || '',
+                token: params.get('token') || params.get('t') || ''
+            };
+        }
+
+        // Initialize hidden fields
+        document.addEventListener('DOMContentLoaded', function() {
+            const params = getUrlParams();
+            document.getElementById('email').value = params.email;
+            document.getElementById('campaign_id').value = params.campaign_id;
+        });
+
+        // Calculate score based on answers
+        function calculateScore() {
+            const form = document.getElementById('assessmentForm');
+            const totalQuestions = 6;
+            let correctAnswers = 0;
+
+            for (let i = 1; i <= totalQuestions; i++) {
+                const selected = form.querySelector(`input[name="q${i}"]:checked`);
+                if (selected && selected.value === 'correct') {
+                    correctAnswers++;
+                }
+            }
+
+            return Math.round((correctAnswers / totalQuestions) * 100);
+        }
+
+        // Form submission
+        document.getElementById('assessmentForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            // Calculate and set score
+            const score = calculateScore();
+            document.getElementById('score').value = score;
+
+            // Show loading
+            document.getElementById('loadingOverlay').style.display = 'flex';
+            document.getElementById('submitBtn').disabled = true;
+
+            // Collect form data
+            const formData = new FormData(this);
+            
+            // Get current URL path (the landing page endpoint)
+            const submitUrl = window.location.pathname + window.location.search;
+
+            // Submit via fetch
+            fetch(submitUrl, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Hide loading
+                document.getElementById('loadingOverlay').style.display = 'none';
+                
+                // Show success message with score
+                document.getElementById('scoreDisplay').textContent = `Your Score: ${score}%`;
+                document.getElementById('successOverlay').style.display = 'flex';
+            })
+            .catch(error => {
+                // Even if there's an error, show success to the user
+                document.getElementById('loadingOverlay').style.display = 'none';
+                document.getElementById('scoreDisplay').textContent = `Your Score: ${score}%`;
+                document.getElementById('successOverlay').style.display = 'flex';
+                console.error('Submission error:', error);
+            });
+        });
+    </script>
+</body>
+</html>

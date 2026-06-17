@@ -1,0 +1,444 @@
+{% extends "base.html" %}
+{% block title %}Questionnaire Responses - {{ campaign.name }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6 animate-fade-in">
+    <!-- Header -->
+    <div class="flex justify-between items-center">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100">Questionnaire Responses</h1>
+            <p class="text-slate-500 dark:text-slate-400">{{ campaign.name }}</p>
+        </div>
+        <button onclick="history.back()" class="flex items-center px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-900 dark:text-white rounded-lg font-medium transition-all">
+            <i class="fas fa-arrow-left mr-2"></i> Back
+        </button>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-2 md:grid-cols-6 gap-4" id="summaryCards">
+        <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 text-center hover:border-slate-300 dark:hover:border-slate-600 transition-all duration-300 group shadow-sm">
+            <p class="text-slate-500 dark:text-slate-400 text-sm mb-1 group-hover:text-slate-700 dark:group-hover:text-slate-300 transition-colors">Total Targets</p>
+            <p class="text-2xl font-bold text-slate-900 dark:text-slate-100 group-hover:text-slate-700 dark:group-hover:text-white transition-colors" id="totalTargets">-</p>
+        </div>
+        <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 text-center hover:border-orange-500/30 transition-all duration-300 group shadow-sm">
+            <p class="text-slate-500 dark:text-slate-400 text-sm mb-1 group-hover:text-slate-700 dark:group-hover:text-slate-300 transition-colors">Clicked</p>
+            <p class="text-2xl font-bold text-orange-600 dark:text-orange-400 group-hover:text-orange-500 dark:group-hover:text-orange-300 transition-colors" id="totalClicked">-</p>
+        </div>
+        <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 text-center hover:border-emerald-500/30 transition-all duration-300 group shadow-sm">
+            <p class="text-slate-500 dark:text-slate-400 text-sm mb-1 group-hover:text-slate-700 dark:group-hover:text-slate-300 transition-colors">Completed</p>
+            <p class="text-2xl font-bold text-emerald-600 dark:text-emerald-400 group-hover:text-emerald-500 dark:group-hover:text-emerald-300 transition-colors" id="totalCompleted">-</p>
+        </div>
+        <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 text-center hover:border-blue-500/30 transition-all duration-300 group shadow-sm">
+            <p class="text-slate-500 dark:text-slate-400 text-sm mb-1 group-hover:text-slate-700 dark:group-hover:text-slate-300 transition-colors">Click Rate</p>
+            <p class="text-2xl font-bold text-blue-600 dark:text-blue-400 group-hover:text-blue-500 dark:group-hover:text-blue-300 transition-colors" id="clickRate">-</p>
+        </div>
+        <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 text-center hover:border-purple-500/30 transition-all duration-300 group shadow-sm">
+            <p class="text-slate-500 dark:text-slate-400 text-sm mb-1 group-hover:text-slate-700 dark:group-hover:text-slate-300 transition-colors">Completion Rate</p>
+            <p class="text-2xl font-bold text-purple-600 dark:text-purple-400 group-hover:text-purple-500 dark:group-hover:text-purple-300 transition-colors" id="completionRate">-</p>
+        </div>
+        <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 text-center hover:border-cyan-500/30 transition-all duration-300 group shadow-sm">
+            <p class="text-slate-500 dark:text-slate-400 text-sm mb-1 group-hover:text-slate-700 dark:group-hover:text-slate-300 transition-colors">Avg Score</p>
+            <p class="text-2xl font-bold text-cyan-600 dark:text-cyan-400 group-hover:text-cyan-500 dark:group-hover:text-cyan-300 transition-colors" id="avgScore">-</p>
+        </div>
+    </div>
+
+    <!-- Filter Controls -->
+    <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 shadow-lg">
+        <div class="flex flex-wrap items-end gap-4">
+            <div class="flex-1 min-w-[200px]">
+                <label class="block text-slate-500 dark:text-slate-400 text-xs font-medium uppercase tracking-wider mb-2">Filter by Status</label>
+                <div class="relative">
+                    <select class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg pl-4 pr-10 py-2.5 text-sm text-slate-900 dark:text-slate-200 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary appearance-none transition-colors cursor-pointer hover:border-slate-400 dark:hover:border-slate-500" id="statusFilter">
+                        <option value="all">All Responses</option>
+                        <option value="completed">Completed Only</option>
+                        <option value="clicked">Clicked (Not Completed)</option>
+                        <option value="not_clicked">Not Clicked</option>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500 dark:text-slate-400">
+                        <i class="fas fa-chevron-down text-xs"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="flex-1 min-w-[200px]">
+                <label class="block text-slate-500 dark:text-slate-400 text-xs font-medium uppercase tracking-wider mb-2">Filter by SBU</label>
+                <div class="relative">
+                    <select class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg pl-4 pr-10 py-2.5 text-sm text-slate-900 dark:text-slate-200 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary appearance-none transition-colors cursor-pointer hover:border-slate-400 dark:hover:border-slate-500" id="sbuFilter">
+                        <option value="all">All SBUs</option>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500 dark:text-slate-400">
+                        <i class="fas fa-chevron-down text-xs"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="flex-1 min-w-[250px]">
+                <label class="block text-slate-500 dark:text-slate-400 text-xs font-medium uppercase tracking-wider mb-2">Search</label>
+                <div class="relative group">
+                    <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 dark:text-slate-500 group-focus-within:text-primary transition-colors"></i>
+                    <input type="text" class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg pl-10 pr-4 py-2.5 text-sm text-slate-900 dark:text-slate-200 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors placeholder-slate-400 dark:placeholder-slate-500" id="searchInput" placeholder="Search by name or email...">
+                </div>
+            </div>
+            <div class="flex items-end">
+                <button onclick="exportResponses()" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium transition-all shadow-lg shadow-emerald-900/20 flex items-center gap-2">
+                    <i class="fas fa-download"></i>
+                    <span>Export CSV</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Responses Table -->
+    <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-lg">
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-slate-50 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-700">
+                    <tr>
+                        <th class="px-4 py-4 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Name</th>
+                        <th class="px-4 py-4 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Email</th>
+                        <th class="px-4 py-4 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">SBU</th>
+                        <th class="px-4 py-4 text-center text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Clicked</th>
+                        <th class="px-4 py-4 text-center text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Completed</th>
+                        <th class="px-4 py-4 text-center text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Score</th>
+                        <th class="px-4 py-4 text-center text-xs font-bold text-slate-400 uppercase tracking-wider">Completed At</th>
+                        <th class="px-4 py-4 text-center text-xs font-bold text-slate-400 uppercase tracking-wider">Reminders</th>
+                        <th class="px-4 py-4 text-center text-xs font-bold text-slate-400 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="responsesBody" class="divide-y divide-slate-700">
+                    <tr>
+                        <td colspan="9" class="px-4 py-8 text-center">
+                            <div class="flex justify-center">
+                                <div class="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                            </div>
+                            <p class="text-slate-400 mt-2">Loading responses...</p>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Answers Modal -->
+<div id="answersModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden z-50 flex items-center justify-center">
+    <div class="bg-slate-800 rounded-xl border border-slate-700 w-full max-w-2xl mx-4 max-h-[80vh] overflow-hidden">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-700">
+            <div>
+                <h3 class="text-lg font-semibold text-slate-100">Questionnaire Answers</h3>
+                <p class="text-sm text-slate-400" id="modalUserName"></p>
+            </div>
+            <button onclick="closeAnswersModal()" class="text-slate-400 hover:text-slate-200 transition-colors">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <div class="px-6 py-4 overflow-y-auto max-h-[60vh]" id="answersContent">
+            <!-- Answers will be inserted here -->
+        </div>
+        <div class="px-6 py-4 border-t border-slate-700 flex justify-end">
+            <button onclick="closeAnswersModal()" class="px-4 py-2 bg-slate-600 hover:bg-slate-500 text-white rounded-lg font-medium transition-all">
+                Close
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+let allResponses = [];
+let displayedResponses = [];
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadResponses();
+    
+    document.getElementById('statusFilter').addEventListener('change', applyFilters);
+    document.getElementById('sbuFilter').addEventListener('change', applyFilters);
+    document.getElementById('searchInput').addEventListener('input', applyFilters);
+});
+
+function loadResponses() {
+    fetch('/api/campaign/{{ campaign.id }}/questionnaire_responses')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                allResponses = data.responses;
+                displayedResponses = data.responses;
+                updateSummary(data.summary);
+                populateSBUFilter(data.responses);
+                renderTable(data.responses);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading responses:', error);
+            document.getElementById('responsesBody').innerHTML = 
+                '<tr><td colspan="9" class="px-4 py-8 text-center text-red-400">Error loading responses</td></tr>';
+        });
+}
+
+function updateSummary(summary) {
+    document.getElementById('totalTargets').textContent = summary.total_targets;
+    document.getElementById('totalClicked').textContent = summary.clicked;
+    document.getElementById('totalCompleted').textContent = summary.completed;
+    document.getElementById('clickRate').textContent = summary.click_rate + '%';
+    document.getElementById('completionRate').textContent = summary.completion_rate + '%';
+    document.getElementById('avgScore').textContent = summary.average_score + '%';
+}
+
+function populateSBUFilter(responses) {
+    const sbus = [...new Set(responses.map(r => r.sbu || 'Unknown'))].sort();
+    const select = document.getElementById('sbuFilter');
+    sbus.forEach(sbu => {
+        const option = document.createElement('option');
+        option.value = sbu;
+        option.textContent = sbu;
+        select.appendChild(option);
+    });
+}
+
+function applyFilters() {
+    const statusFilter = document.getElementById('statusFilter').value;
+    const sbuFilter = document.getElementById('sbuFilter').value;
+    const search = document.getElementById('searchInput').value.toLowerCase();
+    
+    let filtered = allResponses.filter(r => {
+        if (statusFilter === 'completed' && !r.questionnaire_completed) return false;
+        if (statusFilter === 'clicked' && (!r.clicked || r.questionnaire_completed)) return false;
+        if (statusFilter === 'not_clicked' && r.clicked) return false;
+        
+        if (sbuFilter !== 'all' && (r.sbu || 'Unknown') !== sbuFilter) return false;
+        
+        if (search) {
+            const searchStr = `${r.first_name} ${r.last_name} ${r.email}`.toLowerCase();
+            if (!searchStr.includes(search)) return false;
+        }
+        
+        return true;
+    });
+    
+    displayedResponses = filtered;
+    renderTable(filtered);
+}
+
+function renderTable(responses) {
+    const tbody = document.getElementById('responsesBody');
+    
+    if (responses.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="9" class="px-4 py-12 text-center">
+                    <div class="flex flex-col items-center justify-center text-slate-500">
+                        <i class="fas fa-inbox text-4xl mb-3 opacity-50"></i>
+                        <p class="text-lg font-medium">No responses found</p>
+                        <p class="text-sm opacity-75">Try adjusting your filters or search query</p>
+                    </div>
+                </td>
+            </tr>`;
+        return;
+    }
+    
+    tbody.innerHTML = responses.map((r, idx) => `
+        <tr class="hover:bg-slate-700/30 transition-colors border-b border-slate-700/50 last:border-0">
+            <td class="px-4 py-3 text-sm">
+                <div class="font-medium text-slate-200">${escapeHtml(r.first_name || '')} ${escapeHtml(r.last_name || '')}</div>
+            </td>
+            <td class="px-4 py-3 text-sm text-slate-400">${escapeHtml(r.email)}</td>
+            <td class="px-4 py-3 text-sm text-slate-400">
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-700 text-slate-300 border border-slate-600">
+                    ${escapeHtml(r.sbu || 'Unknown')}
+                </span>
+            </td>
+            <td class="px-4 py-3 text-center">
+                ${r.clicked ? 
+                    '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-500/10 text-orange-400 border border-orange-500/20"><i class="fas fa-mouse-pointer mr-1.5 text-[10px]"></i>Yes</span>' : 
+                    '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-500/10 text-slate-400 border border-slate-500/20">No</span>'}
+            </td>
+            <td class="px-4 py-3 text-center">
+                ${r.questionnaire_completed ? 
+                    '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"><i class="fas fa-check mr-1.5 text-[10px]"></i>Yes</span>' : 
+                    (r.clicked ? '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-500/10 text-yellow-400 border border-yellow-500/20"><i class="fas fa-clock mr-1.5 text-[10px]"></i>Pending</span>' : 
+                    '<span class="text-slate-600">-</span>')}
+            </td>
+            <td class="px-4 py-3 text-center">
+                ${r.questionnaire_score !== null ? 
+                    `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${r.questionnaire_score >= 70 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : r.questionnaire_score >= 40 ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}">${r.questionnaire_score}%</span>` : 
+                    '<span class="text-slate-600">-</span>'}
+            </td>
+            <td class="px-4 py-3 text-sm text-slate-400 text-center font-mono text-xs">${r.questionnaire_completed_at ? formatDate(r.questionnaire_completed_at) : '-'}</td>
+            <td class="px-4 py-3 text-center text-sm text-slate-400">${r.reminder_count || 0}</td>
+            <td class="px-4 py-3 text-center">
+                ${r.questionnaire_answers && Object.keys(r.questionnaire_answers).length > 0 ?
+                    `<button onclick="showAnswers(${idx})" class="inline-flex items-center px-3 py-1.5 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 hover:text-blue-300 border border-blue-600/20 hover:border-blue-600/30 rounded-lg text-xs font-medium transition-all duration-200 group">
+                        <i class="fas fa-eye mr-1.5 group-hover:scale-110 transition-transform"></i>View
+                    </button>` :
+                    '<span class="text-slate-600">-</span>'}
+            </td>
+        </tr>
+    `).join('');
+}
+
+function formatDate(isoString) {
+    const date = new Date(isoString);
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function exportResponses() {
+    const statusFilter = document.getElementById('statusFilter').value;
+    const sbuFilter = document.getElementById('sbuFilter').value;
+    const search = document.getElementById('searchInput').value.toLowerCase();
+    
+    let filtered = allResponses.filter(r => {
+        if (statusFilter === 'completed' && !r.questionnaire_completed) return false;
+        if (statusFilter === 'clicked' && (!r.clicked || r.questionnaire_completed)) return false;
+        if (statusFilter === 'not_clicked' && r.clicked) return false;
+        if (sbuFilter !== 'all' && (r.sbu || 'Unknown') !== sbuFilter) return false;
+        if (search) {
+            const searchStr = `${r.first_name} ${r.last_name} ${r.email}`.toLowerCase();
+            if (!searchStr.includes(search)) return false;
+        }
+        return true;
+    });
+    
+    const headers = ['First Name', 'Last Name', 'Email', 'SBU', 'Clicked', 'Completed', 'Score', 'Completed At', 'Reminders Sent'];
+    const rows = filtered.map(r => [
+        r.first_name || '',
+        r.last_name || '',
+        r.email,
+        r.sbu || 'Unknown',
+        r.clicked ? 'Yes' : 'No',
+        r.questionnaire_completed ? 'Yes' : 'No',
+        r.questionnaire_score !== null ? r.questionnaire_score + '%' : '',
+        r.questionnaire_completed_at || '',
+        r.reminder_count || 0
+    ]);
+    
+    const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+    
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'questionnaire_responses_{{ campaign.id }}.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+}
+
+function showAnswers(idx) {
+    // Use the current filtered list, or allResponses if not filtered
+    const responses = displayedResponses.length > 0 ? displayedResponses : allResponses;
+    const response = responses[idx];
+    
+    if (!response || !response.questionnaire_answers) {
+        toastWarning('No answers available for this user.');
+        return;
+    }
+    
+    // Set user name in modal header
+    document.getElementById('modalUserName').textContent = 
+        `${response.first_name || ''} ${response.last_name || ''} (${response.email})`;
+    
+    const answersContent = document.getElementById('answersContent');
+    const answers = response.questionnaire_answers;
+    
+    // Build answers display
+    let html = '<div class="space-y-4">';
+    
+    // Get sorted question keys
+    const questionKeys = Object.keys(answers).sort((a, b) => {
+        // Extract numbers from keys like "q1", "q2", etc.
+        const numA = parseInt(a.replace(/\D/g, '')) || 0;
+        const numB = parseInt(b.replace(/\D/g, '')) || 0;
+        return numA - numB;
+    });
+    
+    questionKeys.forEach((key, index) => {
+        const answer = answers[key];
+        const questionNum = index + 1;
+        
+        // Handle different answer formats
+        let answerLetter = '';
+        let answerText = '';
+        
+        if (typeof answer === 'object' && answer !== null) {
+            answerLetter = answer.answer || '';
+            answerText = answer.text || '';
+        } else if (typeof answer === 'string') {
+            answerText = answer;
+        }
+        
+        html += `
+            <div class="bg-slate-900/30 rounded-xl p-5 border border-slate-700/50 hover:border-slate-600 transition-colors">
+                <div class="flex items-start gap-4">
+                    <div class="flex-shrink-0 w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 font-mono text-sm">
+                        ${questionNum}
+                    </div>
+                    <div class="flex-1">
+                        <h4 class="text-sm font-medium text-slate-400 mb-3 uppercase tracking-wider">Question ${questionNum}</h4>
+                        <div class="flex items-start gap-4 bg-slate-800/50 rounded-lg p-4 border border-slate-700/50">
+                            ${answerLetter ? `
+                                <span class="flex-shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-lg bg-blue-500/10 text-blue-400 font-bold text-xl border border-blue-500/20 shadow-sm">
+                                    ${escapeHtml(answerLetter)}
+                                </span>
+                            ` : ''}
+                            <div class="flex-1 pt-1">
+                                <span class="text-slate-200 text-lg leading-relaxed block">${escapeHtml(answerText) || '<em class="text-slate-500">No answer text captured</em>'}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    // If no questions parsed, show raw data
+    if (questionKeys.length === 0) {
+        html += `
+            <div class="bg-slate-900/50 rounded-lg p-4 border border-slate-700">
+                <p class="text-slate-400 text-sm">Raw answer data:</p>
+                <pre class="text-slate-200 text-sm mt-2 overflow-x-auto">${escapeHtml(JSON.stringify(answers, null, 2))}</pre>
+            </div>
+        `;
+    }
+    
+    html += '</div>';
+    
+    // Add score summary if available
+    if (response.questionnaire_score !== null) {
+        const scoreColor = response.questionnaire_score >= 70 ? 'emerald' : response.questionnaire_score >= 40 ? 'yellow' : 'red';
+        html = `
+            <div class="mb-4 p-4 rounded-lg bg-${scoreColor}-500/10 border border-${scoreColor}-500/20">
+                <div class="flex items-center justify-between">
+                    <span class="text-${scoreColor}-400 font-medium">Overall Score</span>
+                    <span class="text-2xl font-bold text-${scoreColor}-400">${response.questionnaire_score}%</span>
+                </div>
+            </div>
+        ` + html;
+    }
+    
+    answersContent.innerHTML = html;
+    
+    // Show modal
+    document.getElementById('answersModal').classList.remove('hidden');
+}
+
+function closeAnswersModal() {
+    document.getElementById('answersModal').classList.add('hidden');
+}
+
+// Close modal on backdrop click
+document.getElementById('answersModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeAnswersModal();
+    }
+});
+
+// Close modal on Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeAnswersModal();
+    }
+});
+</script>
+{% endblock %}

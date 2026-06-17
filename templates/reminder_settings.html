@@ -1,0 +1,499 @@
+{% extends "base.html" %}
+{% block title %}Reminder Settings - {{ campaign.name }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6 animate-fade-in">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-slate-900 dark:text-white mb-2">Reminder Settings</h1>
+            <p class="text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                <span class="inline-flex items-center px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 text-sm border border-blue-500/20">
+                    <i class="fas fa-bullhorn mr-1.5"></i>{{ campaign.name }}
+                </span>
+            </p>
+        </div>
+        <button onclick="history.back()" class="flex items-center px-4 py-2.5 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-white rounded-xl font-medium transition-all border border-slate-200 dark:border-slate-600 shadow-sm">
+            <i class="fas fa-arrow-left mr-2"></i> Back
+        </button>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Status Card -->
+        <div class="lg:col-span-1 space-y-6">
+            <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
+                <div class="px-5 py-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+                    <h3 class="text-lg font-semibold text-slate-900 dark:text-white flex items-center">
+                        <div class="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center mr-3">
+                            <i class="fas fa-chart-pie text-blue-600 dark:text-blue-400"></i>
+                        </div>
+                        Reminder Status
+                    </h3>
+                </div>
+                <div class="p-5" id="statusCard">
+                    <div class="flex justify-center py-8">
+                        <div class="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
+                <div class="px-5 py-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+                    <h3 class="text-lg font-semibold text-slate-900 dark:text-white flex items-center">
+                        <div class="w-8 h-8 rounded-lg bg-yellow-500/10 flex items-center justify-center mr-3">
+                            <i class="fas fa-bolt text-yellow-600 dark:text-yellow-400"></i>
+                        </div>
+                        Quick Actions
+                    </h3>
+                </div>
+                <div class="p-5">
+                    <button onclick="sendRemindersNow()" id="sendNowBtn" class="w-full px-4 py-3.5 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white rounded-xl font-medium transition-all flex items-center justify-center shadow-lg shadow-blue-600/20">
+                        <i class="fas fa-paper-plane mr-2"></i>Send Reminders Now
+                    </button>
+                    <p class="text-slate-500 dark:text-slate-400 text-sm mt-4 flex items-start gap-2">
+                        <i class="fas fa-info-circle text-slate-400 dark:text-slate-500 mt-0.5"></i>
+                        <span>Manually trigger sending reminders to all eligible users who clicked but haven't completed the assessment.</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Form -->
+        <div class="lg:col-span-2">
+            <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
+                <div class="px-5 py-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+                    <h3 class="text-lg font-semibold text-slate-900 dark:text-white flex items-center">
+                        <div class="w-8 h-8 rounded-lg bg-slate-200 dark:bg-slate-700 flex items-center justify-center mr-3">
+                            <i class="fas fa-cog text-slate-600 dark:text-slate-300"></i>
+                        </div>
+                        Configure Reminders
+                    </h3>
+                </div>
+                <div class="px-6 pt-4 pb-0">
+                    <div class="flex items-start gap-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 text-sm text-amber-700 dark:text-amber-400">
+                        <i class="fas fa-info-circle mt-0.5 shrink-0"></i>
+                        <span>
+                            Interval, max reminders, subject and template default to the
+                            <a href="/settings" class="underline font-medium hover:text-amber-900 dark:hover:text-amber-200">global reminder settings</a>.
+                            Any values saved here override the global defaults for this campaign only.
+                            The <strong>sender address</strong> is always the one configured globally — it cannot be overridden per campaign.
+                        </span>
+                    </div>
+                </div>
+                <div class="p-6">
+                    <form id="reminderForm">
+                        <!-- Enable Toggle -->
+                        <div class="mb-8 p-4 bg-slate-50 dark:bg-slate-900/30 rounded-xl border border-slate-200 dark:border-slate-700/30">
+                            <label class="flex items-center cursor-pointer" id="toggleLabel">
+                                <div class="relative">
+                                    <input type="checkbox" id="remindersEnabled" class="sr-only peer">
+                                    <div id="toggleBg" class="w-14 h-7 bg-slate-300 dark:bg-slate-600 rounded-full cursor-pointer transition-colors duration-200"></div>
+                                    <div id="toggleDot" class="absolute left-1 top-1 bg-white w-5 h-5 rounded-full transition-transform duration-200 cursor-pointer shadow-md"></div>
+                                </div>
+                                <span class="ml-4 text-slate-900 dark:text-white font-medium text-lg">Enable Automatic Reminders</span>
+                            </label>
+                            <p class="text-slate-500 dark:text-slate-400 text-sm mt-3 ml-[4.5rem]">When enabled, reminders will be sent automatically based on the interval below.</p>
+                        </div>
+
+                        <!-- Interval Settings -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                            <div>
+                                <label class="block text-slate-700 dark:text-slate-300 text-sm font-medium mb-2">
+                                    <i class="fas fa-clock text-slate-400 dark:text-slate-500 mr-1"></i> Reminder Interval (minutes)
+                                </label>
+                                <input type="number" id="intervalMinutes" min="1" max="1440" value="5" 
+                                    class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-2.5 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                                <p class="text-slate-500 text-xs mt-2">How often to send reminders (1-1440 minutes)</p>
+                            </div>
+                            <div>
+                                <label class="block text-slate-700 dark:text-slate-300 text-sm font-medium mb-2">
+                                    <i class="fas fa-hashtag text-slate-400 dark:text-slate-500 mr-1"></i> Maximum Reminders Per User
+                                </label>
+                                <input type="number" id="maxReminders" min="1" max="100" value="12"
+                                    class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-2.5 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                                <p class="text-slate-500 text-xs mt-2">Stop sending after this many reminders</p>
+                            </div>
+                        </div>
+
+                        <!-- Subject -->
+                        <div class="mb-6">
+                            <label class="block text-slate-700 dark:text-slate-300 text-sm font-medium mb-2">
+                                <i class="fas fa-envelope text-slate-400 dark:text-slate-500 mr-1"></i> Email Subject
+                            </label>
+                            <input type="text" id="reminderSubject" value="Reminder: Complete Your Security Assessment"
+                                class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-2.5 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                        </div>
+
+                        <!-- CC Email -->
+                        <div class="mb-6">
+                            <label class="block text-slate-700 dark:text-slate-300 text-sm font-medium mb-2">
+                                <i class="fas fa-copy text-slate-400 dark:text-slate-500 mr-1"></i> CC Email (Optional)
+                            </label>
+                            <input type="email" id="reminderCc" placeholder="e.g., manager@company.com"
+                                class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-2.5 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                            <p class="text-slate-500 text-xs mt-2">Send a copy of each reminder to this email address</p>
+                        </div>
+
+                        <!-- Template -->
+                        <div class="mb-6">
+                            <label class="block text-slate-700 dark:text-slate-300 text-sm font-medium mb-2">
+                                <i class="fas fa-code text-slate-400 dark:text-slate-500 mr-1"></i> Email Template (HTML)
+                            </label>
+                            <div class="mb-3 flex flex-wrap gap-2">
+                                <span class="text-slate-500 dark:text-slate-400 text-xs">Available variables:</span>
+                                <code class="bg-slate-100 dark:bg-slate-700/50 px-2 py-0.5 rounded text-xs text-emerald-600 dark:text-emerald-400 border border-slate-200 dark:border-slate-600">{{FirstName}}</code>
+                                <code class="bg-slate-100 dark:bg-slate-700/50 px-2 py-0.5 rounded text-xs text-emerald-600 dark:text-emerald-400 border border-slate-200 dark:border-slate-600">{{LastName}}</code>
+                                <code class="bg-slate-100 dark:bg-slate-700/50 px-2 py-0.5 rounded text-xs text-emerald-600 dark:text-emerald-400 border border-slate-200 dark:border-slate-600">{{email}}</code>
+                                <code class="bg-slate-100 dark:bg-slate-700/50 px-2 py-0.5 rounded text-xs text-emerald-600 dark:text-emerald-400 border border-slate-200 dark:border-slate-600">{{questionnaire_link}}</code>
+                                <code class="bg-slate-100 dark:bg-slate-700/50 px-2 py-0.5 rounded text-xs text-emerald-600 dark:text-emerald-400 border border-slate-200 dark:border-slate-600">{{campaign_name}}</code>
+                            </div>
+                            <div id="templateEditor" class="h-96 border border-slate-300 dark:border-slate-600 rounded-xl overflow-hidden"></div>
+                        </div>
+
+                        <!-- Buttons -->
+                        <div class="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-700/50">
+                            <button type="button" onclick="loadDefaultTemplate()" class="px-5 py-2.5 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-white rounded-xl font-medium transition-all border border-slate-200 dark:border-slate-600">
+                                <i class="fas fa-undo mr-2"></i>Reset to Default
+                            </button>
+                            <button type="submit" class="px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white rounded-xl font-medium transition-all shadow-lg shadow-emerald-600/20">
+                                <i class="fas fa-save mr-2"></i>Save Settings
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Container -->
+<div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
+<script>
+{% raw %}
+let editor;
+const defaultTemplate = `<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f5f5f5; }
+        .container { max-width: 600px; margin: 0 auto; background: white; }
+        .header { background: linear-gradient(135deg, #e94560, #c23a50); color: white; padding: 30px; text-align: center; }
+        .content { padding: 30px; }
+        .button { display: inline-block; background: #e94560; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; }
+        .footer { padding: 20px; text-align: center; color: #666; font-size: 12px; background: #f9f9f9; }
+        .warning-box { background: #fff3f3; border-left: 4px solid #e94560; padding: 15px; margin: 20px 0; }
+        .red-text { color: #cc0000; font-weight: bold; }
+        .reminder-note { background: #fff0f0; padding: 12px; border-radius: 4px; margin: 15px 0; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Security Alert: Phishing Link Detected</h1>
+        </div>
+        <div class="content">
+            <div class="warning-box">
+                <strong class="red-text">You clicked a phishing link.</strong>
+            </div>
+            <p>Our security systems have detected that you <strong>clicked</strong> on a known phishing link. This link has been blocked to protect your information.</p>
+            <div class="reminder-note">
+                <span class="red-text">Reminder: You will be prompted every 5 minutes until this security assessment is completed.</span>
+            </div>
+            <p>No credentials or personal data were compromised during this interaction. The threat has been neutralized.</p>
+            <a href="{{questionnaire_link}}" class="button">Complete Security Assessment Now</a>
+        </div>
+        <div class="footer">
+            <p>Automated security notification | If you have questions, contact your system administrator</p>
+        </div>
+    </div>
+</body>
+</html>`;
+{% endraw %}
+
+// Campaign ID from the server
+const campaignId = {{ campaign.id }};
+
+document.addEventListener('DOMContentLoaded', function() {
+    initEditor();
+    loadSettings();
+    loadStatus();
+    
+    // Auto-refresh status every 30 seconds
+    setInterval(loadStatus, 30000);
+    
+    // Setup toggle switch functionality
+    setupToggleSwitch();
+});
+
+function setupToggleSwitch() {
+    const checkbox = document.getElementById('remindersEnabled');
+    const toggleBg = document.getElementById('toggleBg');
+    const toggleDot = document.getElementById('toggleDot');
+    
+    // Update visual state based on checkbox
+    function updateToggleVisual() {
+        if (checkbox.checked) {
+            toggleBg.classList.remove('bg-slate-300', 'dark:bg-slate-600');
+            toggleBg.classList.add('bg-emerald-500');
+            toggleDot.style.transform = 'translateX(1.75rem)';
+        } else {
+            toggleBg.classList.remove('bg-emerald-500');
+            toggleBg.classList.add('bg-slate-300', 'dark:bg-slate-600');
+            toggleDot.style.transform = 'translateX(0)';
+        }
+    }
+    
+    // Toggle on click of background or dot
+    toggleBg.addEventListener('click', function(e) {
+        e.preventDefault();
+        checkbox.checked = !checkbox.checked;
+        updateToggleVisual();
+    });
+    
+    toggleDot.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        checkbox.checked = !checkbox.checked;
+        updateToggleVisual();
+    });
+    
+    // Also handle direct checkbox changes
+    checkbox.addEventListener('change', updateToggleVisual);
+    
+    // Make it globally accessible for loadSettings
+    window.updateToggleVisual = updateToggleVisual;
+    
+    // Initial state
+    updateToggleVisual();
+}
+
+function initEditor() {
+    require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }});
+    require(['vs/editor/editor.main'], function() {
+        editor = monaco.editor.create(document.getElementById('templateEditor'), {
+            value: defaultTemplate,
+            language: 'html',
+            theme: 'vs-dark',
+            minimap: { enabled: false },
+            wordWrap: 'on',
+            automaticLayout: true,
+            fontSize: 13,
+            lineNumbers: 'on',
+            scrollBeyondLastLine: false
+        });
+    });
+}
+
+function loadSettings() {
+    fetch(`/api/campaign/${campaignId}/reminder_settings`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const s = data.settings;
+                const checkbox = document.getElementById('remindersEnabled');
+                checkbox.checked = s.enabled;
+                
+                // Update toggle visual state using the global function
+                if (window.updateToggleVisual) {
+                    window.updateToggleVisual();
+                }
+                
+                document.getElementById('intervalMinutes').value = s.interval_minutes;
+                document.getElementById('maxReminders').value = s.max_reminders;
+                document.getElementById('reminderSubject').value = s.subject;
+                document.getElementById('reminderCc').value = s.cc || '';
+                
+                if (editor && s.html) {
+                    editor.setValue(s.html);
+                }
+            }
+        });
+}
+
+function loadStatus() {
+    fetch(`/api/campaign/${campaignId}/reminder_status`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const s = data.status;
+                document.getElementById('statusCard').innerHTML = `
+                    <div class="mb-4">
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${s.enabled ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' : 'bg-slate-100 dark:bg-slate-500/10 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-500/20'}">
+                            ${s.enabled ? '<i class="fas fa-check mr-2"></i>Enabled' : '<i class="fas fa-times mr-2"></i>Disabled'}
+                        </span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div class="text-center p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg">
+                            <p class="text-2xl font-bold text-orange-500 dark:text-orange-400">${s.clicked}</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 uppercase">Clicked</p>
+                        </div>
+                        <div class="text-center p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg">
+                            <p class="text-2xl font-bold text-emerald-500 dark:text-emerald-400">${s.completed}</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 uppercase">Completed</p>
+                        </div>
+                        <div class="text-center p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg">
+                            <p class="text-2xl font-bold text-yellow-500 dark:text-yellow-400">${s.pending}</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 uppercase">Pending</p>
+                        </div>
+                        <div class="text-center p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg">
+                            <p class="text-2xl font-bold text-blue-500 dark:text-blue-400">${s.total_reminders_sent}</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 uppercase">Sent</p>
+                        </div>
+                    </div>
+                    <div class="text-sm text-slate-500 dark:text-slate-400 space-y-1 border-t border-slate-200 dark:border-slate-700 pt-4">
+                        <p><strong class="text-slate-700 dark:text-slate-300">Interval:</strong> Every ${s.interval_minutes} minutes</p>
+                        <p><strong class="text-slate-700 dark:text-slate-300">Max per user:</strong> ${s.max_reminders}</p>
+                        <p><strong class="text-slate-700 dark:text-slate-300">Maxed out:</strong> ${s.maxed_out} users</p>
+                    </div>
+                `;
+                
+                document.getElementById('sendNowBtn').disabled = s.pending === 0;
+                if (s.pending === 0) {
+                    document.getElementById('sendNowBtn').classList.add('opacity-50', 'cursor-not-allowed');
+                } else {
+                    document.getElementById('sendNowBtn').classList.remove('opacity-50', 'cursor-not-allowed');
+                }
+            }
+        });
+}
+
+function loadDefaultTemplate() {
+    // Pull the global system template if available, otherwise use built-in default
+    fetch('/settings/get_defaults')
+        .then(r => r.json())
+        .then(data => {
+            const tpl = data.reminder_email_template || defaultTemplate;
+            if (editor) editor.setValue(tpl);
+        })
+        .catch(() => { if (editor) editor.setValue(defaultTemplate); });
+}
+
+document.getElementById('reminderForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const settings = {
+        enabled: document.getElementById('remindersEnabled').checked,
+        interval_minutes: parseInt(document.getElementById('intervalMinutes').value) || 5,
+        max_reminders: parseInt(document.getElementById('maxReminders').value) || 12,
+        subject: document.getElementById('reminderSubject').value,
+        cc: document.getElementById('reminderCc').value.trim(),
+        html: editor ? editor.getValue() : ''
+    };
+    
+    fetch(`/api/campaign/${campaignId}/reminder_settings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('success', 'Settings saved successfully!');
+            loadStatus();
+        } else {
+            showToast('error', data.error || 'Failed to save settings');
+        }
+    })
+    .catch(error => {
+        showToast('error', 'Error saving settings: ' + error.message);
+    });
+});
+
+function sendRemindersNow() {
+    // Show confirmation modal instead of browser confirm
+    showConfirmModal(
+        'Send Reminders Now?',
+        'This will send reminders to all users who clicked but haven\'t completed the assessment.',
+        function() {
+            hideConfirmModal();
+            doSendReminders();
+        }
+    );
+}
+
+function doSendReminders() {
+    const btn = document.getElementById('sendNowBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Sending...';
+    
+    fetch(`/api/campaign/${campaignId}/send_reminders`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('success', data.message);
+            loadStatus();
+        } else {
+            showToast('error', data.error || 'Failed to send reminders');
+        }
+    })
+    .catch(error => {
+        showToast('error', 'Error sending reminders: ' + error.message);
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Send Reminders Now';
+    });
+}
+
+function showConfirmModal(title, message, onConfirm) {
+    // Create modal if it doesn't exist
+    let modal = document.getElementById('confirmModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'confirmModal';
+        modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm';
+        modal.innerHTML = `
+            <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 max-w-md w-full mx-4 shadow-2xl">
+                <h3 id="confirmTitle" class="text-xl font-bold text-slate-900 dark:text-slate-100 mb-3"></h3>
+                <p id="confirmMessage" class="text-slate-500 dark:text-slate-400 mb-6"></p>
+                <div class="flex justify-end gap-3">
+                    <button onclick="hideConfirmModal()" class="px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-white rounded-lg font-medium transition-all">
+                        Cancel
+                    </button>
+                    <button id="confirmBtn" class="px-4 py-2 bg-primary hover:bg-blue-500 text-white rounded-lg font-medium transition-all">
+                        <i class="fas fa-paper-plane mr-2"></i>Send
+                    </button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+    
+    document.getElementById('confirmTitle').textContent = title;
+    document.getElementById('confirmMessage').textContent = message;
+    document.getElementById('confirmBtn').onclick = onConfirm;
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+}
+
+function hideConfirmModal() {
+    const modal = document.getElementById('confirmModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+function showToast(type, message) {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = `px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 animate-fade-in ${
+        type === 'success' ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'
+    }`;
+    toast.innerHTML = `
+        <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i>
+        <span>${message}</span>
+    `;
+    container.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.remove();
+    }, 5000);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Awareness</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4edf5 100%);
+            color: #333;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 800px;
+            width: 100%;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #ff6600 0%, #ff6600 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+        }
+        
+        .header-icon {
+            font-size: 3.5rem;
+            margin-bottom: 15px;
+            display: block;
+        }
+        
+        h1 {
+            font-size: 2.2rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            font-weight: 400;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .alert-box {
+            background: #e8f4fc;
+            border-left: 4px solid #ff6600;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .alert-box h2 {
+            color: #ff6600;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .info-section {
+            margin-bottom: 30px;
+        }
+        
+        .info-section h2 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .info-section p {
+            margin-bottom: 15px;
+            color: #555;
+        }
+        
+        .tips-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 25px;
+        }
+        
+        .tip-card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            border-left: 3px solid #3498db;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .tip-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+        }
+        
+        .tip-card h3 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .tip-icon {
+            color: #3498db;
+            font-size: 1.2rem;
+        }
+        
+        .contact-box {
+            background: #e8f4fc;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 30px;
+            text-align: center;
+            border: 1px solid #b8e0fc;
+        }
+        
+        .contact-box h3 {
+            color: #2980b9;
+            margin-bottom: 10px;
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 20px;
+            background: #2c3e50;
+            color: #ecf0f1;
+            font-size: 0.9rem;
+        }
+        
+        .logo {
+            font-weight: 700;
+            color: #3498db;
+            font-size: 1.1rem;
+            margin-top: 10px;
+        }
+        
+        @media (max-width: 600px) {
+            .header {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 1.8rem;
+            }
+            
+            .content {
+                padding: 25px;
+            }
+            
+            .tips-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <i class="fas fa-shield-alt header-icon"></i>
+            <h1>Security Awareness</h1>
+            <div class="subtitle">Phishing Link Clicked</div>
+        </div>
+        
+        <div class="content">
+            <div class="alert-box">
+                <h2><i class="fas fa-info-circle"></i> Important Security Notice</h2>
+                <p>You have clicked a link in a phishing email. A member of our Information Security Team will contact you to provide guidance on identifying and avoiding phishing attempts in the future.</p>
+            </div>
+            
+            <div class="info-section">
+                <h2><i class="fas fa-graduation-cap"></i> How to Identify Phishing Attempts</h2>
+                <p>Here are key indicators to help you spot phishing emails:</p>
+                
+                <div class="tips-grid">
+                    <div class="tip-card">
+                        <h3><i class="fas fa-envelope tip-icon"></i> Check the Sender's Address</h3>
+                        <p>Phishing emails often come from addresses that look similar to legitimate ones but have slight variations or misspellings.</p>
+                    </div>
+                    
+                    <div class="tip-card">
+                        <h3><i class="fas fa-mouse-pointer tip-icon"></i> Verify Links Before Clicking</h3>
+                        <p>Hover over links to see the actual URL. If it looks suspicious or doesn't match the claimed destination, don't click it.</p>
+                    </div>
+                    
+                    <div class="tip-card">
+                        <h3><i class="fas fa-paperclip tip-icon"></i> Be Cautious With Attachments</h3>
+                        <p>Avoid opening attachments from unknown or unexpected sources as they may contain malware.</p>
+                    </div>
+                    
+                    <div class="tip-card">
+                        <h3><i class="fas fa-exclamation-circle tip-icon"></i> Look for Urgency or Threats</h3>
+                        <p>Phishing emails often create a false sense of urgency or use threatening language to prompt immediate action.</p>
+                    </div>
+                    
+                    <div class="tip-card">
+                        <h3><i class="fas fa-spell-check tip-icon"></i> Check for Spelling and Grammar</h3>
+                        <p>Many phishing emails contain noticeable spelling mistakes and grammatical errors.</p>
+                    </div>
+                    
+                    <div class="tip-card">
+                        <h3><i class="fas fa-user-check tip-icon"></i> Verify Unusual Requests</h3>
+                        <p>If an email requests sensitive information or unusual actions, verify through another communication channel.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="contact-box">
+                <h3><i class="fas fa-headset"></i> Information Security Team</h3>
+                <p>Our team is here to help you stay secure. You will be contacted shortly for a brief educational discussion about phishing awareness.</p>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Protecting our organization's security is a shared responsibility.</p>
+            <div class="logo">Information Security Team</div>
+        </div>
+    </div>
+
+    <script>
+        // Add subtle animation to cards when they come into view
+        document.addEventListener('DOMContentLoaded', function() {
+            const tipCards = document.querySelectorAll('.tip-card');
+            
+            tipCards.forEach((card, index) => {
+                // Stagger the animation
+                card.style.opacity = '0';
+                card.style.transform = 'translateY(20px)';
+                
+                setTimeout(() => {
+                    card.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+                    card.style.opacity = '1';
+                    card.style.transform = 'translateY(0)';
+                }, 200 + (index * 100));
+            });
+        });
+    </script>
+</body>
+</html>

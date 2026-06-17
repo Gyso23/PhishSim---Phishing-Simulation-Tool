@@ -1,0 +1,882 @@
+{% extends "base.html" %}
+
+{% block title %}Landing Pages - PhishSim{% endblock %}
+
+{% block content %}
+{% raw %}
+<!-- Monaco Editor CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
+
+<div class="space-y-6 animate-fade-in">
+  <!-- Header -->
+  <div class="flex flex-wrap justify-between items-center gap-4">
+    <div>
+      <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100">Landing Pages</h1>
+      <p class="text-slate-500 dark:text-slate-400">Create and manage phishing landing pages</p>
+    </div>
+    <div class="flex gap-3">
+      <button onclick="showCreatePageModal()" class="flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium shadow-lg shadow-emerald-900/20 transition-all btn-hover">
+        <i class="fas fa-plus mr-2"></i> Create Landing Page
+      </button>
+    </div>
+  </div>
+
+  <!-- Info Banner for Default Questionnaire -->
+  <div class="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 shadow-sm">
+    <div class="flex items-start gap-4">
+      <div class="flex-shrink-0 mt-1">
+        <div class="w-10 h-10 bg-blue-600 dark:bg-blue-500 rounded-lg flex items-center justify-center">
+          <i class="fas fa-lightbulb text-white text-lg"></i>
+        </div>
+      </div>
+      <div class="flex-1">
+        <h3 class="text-base font-semibold text-blue-900 dark:text-blue-100 mb-1">
+          💡 Default Questionnaire Template Available
+        </h3>
+        <p class="text-sm text-blue-800 dark:text-blue-200 mb-2">
+          A production-ready <strong>Security Awareness Questionnaire</strong> with 6 questions is available. 
+          All answers are properly configured for accurate scoring and data collection.
+        </p>
+        <div class="flex flex-wrap gap-3 text-xs text-blue-700 dark:text-blue-300">
+          <span class="flex items-center gap-1">
+            <i class="fas fa-check-circle"></i> Server-side validation
+          </span>
+          <span class="flex items-center gap-1">
+            <i class="fas fa-check-circle"></i> Responsive design
+          </span>
+          <span class="flex items-center gap-1">
+            <i class="fas fa-check-circle"></i> Ready to clone & customize
+          </span>
+        </div>
+      </div>
+      <button onclick="highlightDefaultPage()" class="flex-shrink-0 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 dark:bg-blue-500 dark:hover:bg-blue-400 text-white text-sm rounded-lg font-medium transition-colors">
+        <i class="fas fa-search mr-1"></i> Find It
+      </button>
+    </div>
+  </div>
+
+  <!-- Search and Filter -->
+  <div class="flex flex-wrap gap-4 items-center">
+    <div class="flex-1 min-w-[200px]">
+      <input type="text" id="searchPages" placeholder="Search landing pages..." 
+        class="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 input-focus"
+        oninput="filterPages()">
+    </div>
+    <select id="typeFilter" class="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 input-focus" onchange="filterPages()">
+      <option value="" class="bg-white dark:bg-slate-900">All Types</option>
+      <option value="simple" class="bg-white dark:bg-slate-900">Simple</option>
+      <option value="credential_harvest" class="bg-white dark:bg-slate-900">Credential Harvest</option>
+      <option value="questionnaire" class="bg-white dark:bg-slate-900">Questionnaire</option>
+    </select>
+  </div>
+
+  <!-- Landing Pages Grid -->
+  <div id="pagesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+
+  <!-- Empty State -->
+  <div id="emptyState" class="hidden text-center py-16 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+    <i class="fas fa-file-code text-6xl text-slate-300 dark:text-slate-600 mb-4"></i>
+    <h3 class="text-xl font-semibold text-slate-700 dark:text-slate-300 mb-2">No Landing Pages Yet</h3>
+    <p class="text-slate-500 dark:text-slate-500 mb-6">Create your first landing page to get started</p>
+    <button onclick="showCreatePageModal()" class="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium btn-hover">
+      <i class="fas fa-plus mr-2"></i> Create Landing Page
+    </button>
+  </div>
+
+  <!-- Loading State -->
+  <div id="loadingState" class="text-center py-16">
+    <i class="fas fa-spinner fa-spin text-4xl text-primary mb-4"></i>
+    <p class="text-slate-500 dark:text-slate-400">Loading landing pages...</p>
+  </div>
+</div>
+
+
+
+<style>
+  .page-card { transition: all 0.2s; }
+  .page-card:hover { transform: translateY(-2px); box-shadow: 0 10px 40px rgba(0,0,0,0.3); }
+  .thumbnail-container { position: relative; height: 180px; overflow: hidden; background: white; }
+  .thumbnail-container iframe { position: absolute; top: 0; left: 0; width: 200%; height: 200%; transform: scale(0.5); transform-origin: top left; pointer-events: none; border: 0; }
+  .thumbnail-overlay { position: absolute; inset: 0; background: linear-gradient(to bottom, transparent 60%, rgba(0,0,0,0.1)); cursor: pointer; }
+  .type-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; }
+  .type-simple { background: rgba(59, 130, 246, 0.1); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.2); }
+  .type-credential_harvest { background: rgba(239, 68, 68, 0.1); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.2); }
+  .type-questionnaire { background: rgba(168, 85, 247, 0.1); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.2); }
+  /* Highlight effect for click-to-code */
+  .highlighted-line { background-color: rgba(59, 130, 246, 0.3) !important; }
+  #previewFrame { cursor: pointer; }
+</style>
+
+<script>
+let monacoEditor = null;
+let allPages = [];
+
+require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' }});
+
+document.addEventListener('DOMContentLoaded', loadPages);
+
+async function loadPages() {
+  try {
+    const response = await fetch('/landing-pages', {
+      headers: { 'Accept': 'application/json' }
+    });
+    allPages = await response.json();
+    renderPages(allPages);
+  } catch(err) {
+    console.error('Error loading landing pages:', err);
+    document.getElementById('loadingState').innerHTML = '<p class="text-red-400">Failed to load landing pages</p>';
+  }
+}
+
+function renderPages(pages) {
+  const grid = document.getElementById('pagesGrid');
+  const loading = document.getElementById('loadingState');
+  const empty = document.getElementById('emptyState');
+  
+  loading.classList.add('hidden');
+  
+  if (pages.length === 0) {
+    grid.innerHTML = '';
+    empty.classList.remove('hidden');
+    return;
+  }
+  
+  empty.classList.add('hidden');
+  
+  grid.innerHTML = pages.map(function(p) {
+    var typeLabel = p.page_type === 'credential_harvest' ? 'Credential Harvest' : (p.page_type === 'questionnaire' ? 'Questionnaire' : 'Simple');
+    var dateStr = p.updated_at ? new Date(p.updated_at).toLocaleDateString() : 'Unknown';
+    var isDefault = p.name === 'Default Security Awareness Questionnaire';
+    
+    return '<div class="page-card glass-card rounded-xl border border-white/10 overflow-hidden group' + (isDefault ? ' ring-2 ring-blue-500/50' : '') + '" data-type="' + escapeHtml(p.page_type || 'simple') + '">' +
+      '<div class="thumbnail-container">' +
+        '<iframe srcdoc="' + escapeHtml(p.html_content || '<div style=\"padding:40px;color:#999;text-align:center;\">No content</div>') + '" sandbox="allow-same-origin"></iframe>' +
+        '<div class="thumbnail-overlay opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">' +
+          '<button onclick="editPage(' + p.id + ')" class="px-4 py-2 bg-black/50 hover:bg-black/70 backdrop-blur text-white rounded-lg text-sm font-medium transition-colors"><i class="fas fa-code mr-2"></i>Open Editor</button>' +
+          '<button onclick="previewPage(' + p.id + ')" class="px-4 py-2 bg-black/50 hover:bg-black/70 backdrop-blur text-white rounded-lg text-sm font-medium transition-colors"><i class="fas fa-eye mr-2"></i>Preview</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="p-4">' +
+        (isDefault ? '<div class="mb-2 px-2 py-1 bg-blue-600 text-white text-xs font-semibold rounded-md inline-flex items-center gap-1"><i class="fas fa-star"></i> DEFAULT TEMPLATE</div>' : '') +
+        '<div class="flex items-center gap-2 mb-2">' +
+          '<h3 class="font-semibold text-slate-900 dark:text-slate-100 truncate flex-1">' + escapeHtml(p.name) + '</h3>' +
+          '<span class="type-badge type-' + (p.page_type || 'simple') + '">' + typeLabel + '</span>' +
+        '</div>' +
+        '<p class="text-xs text-slate-600 dark:text-slate-500 mb-3">Updated: ' + dateStr + '</p>' +
+        '<div class="flex gap-2">' +
+          '<button onclick="editPage(' + p.id + ')" class="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium transition-colors btn-hover"><i class="fas fa-edit mr-1"></i> Edit</button>' +
+          '<button onclick="duplicatePage(' + p.id + ')" class="px-3 py-2 bg-slate-200 dark:bg-white/5 hover:bg-slate-300 dark:hover:bg-white/10 text-slate-700 dark:text-white rounded-lg text-sm transition-colors border border-slate-300 dark:border-white/10 btn-hover" title="Duplicate"><i class="fas fa-copy"></i></button>' +
+          '<button onclick="deletePage(' + p.id + ')" class="px-3 py-2 bg-red-600/20 hover:bg-red-600 text-red-600 dark:text-red-400 hover:text-white rounded-lg text-sm transition-colors btn-hover" title="Delete"><i class="fas fa-trash"></i></button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function filterPages() {
+  const search = document.getElementById('searchPages').value.toLowerCase();
+  const type = document.getElementById('typeFilter').value;
+  
+  const filtered = allPages.filter(function(p) {
+    const matchSearch = !search || (p.name && p.name.toLowerCase().includes(search));
+    const matchType = !type || p.page_type === type;
+    return matchSearch && matchType;
+  });
+  
+  renderPages(filtered);
+}
+
+function highlightDefaultPage() {
+  // Clear filters and search
+  document.getElementById('searchPages').value = '';
+  document.getElementById('typeFilter').value = 'questionnaire';
+  filterPages();
+  
+  // Scroll to top and highlight after a brief delay
+  setTimeout(function() {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    
+    // Find and highlight the default page card
+    const cards = document.querySelectorAll('.page-card');
+    cards.forEach(function(card) {
+      const nameElement = card.querySelector('h3');
+      if (nameElement && nameElement.textContent.includes('Default Security Awareness Questionnaire')) {
+        card.classList.add('ring-4', 'ring-blue-500', 'ring-offset-2', 'dark:ring-offset-slate-900');
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        // Remove highlight after 3 seconds
+        setTimeout(function() {
+          card.classList.remove('ring-4', 'ring-blue-500', 'ring-offset-2', 'dark:ring-offset-slate-900');
+        }, 3000);
+      }
+    });
+  }, 100);
+}
+
+function showCreatePageModal() {
+  document.getElementById('pageId').value = '';
+  document.getElementById('pageName').value = '';
+  document.getElementById('pageType').value = 'simple';
+  document.getElementById('captureData').checked = true;
+  document.getElementById('redirectUrl').value = '';
+  document.getElementById('editorTitle').textContent = 'New Landing Page';
+  
+  openEditorModal();
+  
+  setTimeout(function() {
+    if (monacoEditor) {
+      monacoEditor.setValue(getDefaultLandingPage());
+      updatePreview();
+    }
+  }, 300);
+}
+
+function openEditorModal() {
+  document.getElementById('editorModal').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+  var sidebar = document.getElementById('main-sidebar');
+  if (sidebar) sidebar.style.display = 'none';
+  
+  if (!monacoEditor) {
+    require(['vs/editor/editor.main'], function() {
+      monacoEditor = monaco.editor.create(document.getElementById('monacoContainer'), {
+        value: '',
+        language: 'html',
+        theme: 'vs-dark',
+        fontSize: 14,
+        minimap: { enabled: false },
+        wordWrap: 'on',
+        lineNumbers: 'on',
+        automaticLayout: true,
+        scrollBeyondLastLine: false,
+        tabSize: 2
+      });
+      
+      monacoEditor.onDidChangeModelContent(function() {
+        updatePreview();
+      });
+    });
+  }
+}
+
+function closeEditorModal() {
+  document.getElementById('editorModal').classList.add('hidden');
+  document.body.style.overflow = '';
+  var sidebar = document.getElementById('main-sidebar');
+  if (sidebar) sidebar.style.display = '';
+}
+
+function updatePreview() {
+  if (!monacoEditor) return;
+  
+  var html = monacoEditor.getValue();
+  html = html.replace(/\{\{email\}\}/g, 'user@example.com');
+  html = html.replace(/\{\{tracking_pixel\}\}/g, '<!-- tracking pixel -->');
+  
+  var frame = document.getElementById('previewFrame');
+  frame.srcdoc = html;
+  
+  // Add click-to-highlight after iframe loads
+  frame.onload = function() {
+    try {
+      var doc = frame.contentDocument || frame.contentWindow.document;
+      doc.body.style.cursor = 'pointer';
+      
+      // Add hover effect styles
+      var style = doc.createElement('style');
+      style.textContent = '[data-clickable]:hover { outline: 2px dashed #3b82f6 !important; outline-offset: 2px; }';
+      doc.head.appendChild(style);
+      
+      // Mark all elements as clickable
+      var elements = doc.body.querySelectorAll('*');
+      elements.forEach(function(el) {
+        el.setAttribute('data-clickable', 'true');
+        el.addEventListener('click', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          highlightElementInEditor(el);
+        });
+      });
+    } catch(err) {
+      console.log('Could not attach click handlers to preview:', err);
+    }
+  };
+}
+
+function highlightElementInEditor(element) {
+  if (!monacoEditor) return;
+  
+  // Get the outer HTML of clicked element
+  var tagName = element.tagName.toLowerCase();
+  var html = monacoEditor.getValue();
+  
+  // Build a search pattern based on the element
+  var searchText = '';
+  
+  // Try to find by id first
+  if (element.id) {
+    searchText = 'id="' + element.id + '"';
+  } 
+  // Then by class
+  else if (element.className && typeof element.className === 'string' && element.className.trim()) {
+    var firstClass = element.className.split(' ')[0];
+    searchText = 'class="' + firstClass;
+  }
+  // Then by tag with content
+  else if (element.textContent && element.textContent.trim().length > 0 && element.textContent.trim().length < 50) {
+    var text = element.textContent.trim().substring(0, 30);
+    searchText = text;
+  }
+  // Fallback to tag name with attributes
+  else {
+    searchText = '<' + tagName;
+  }
+  
+  // Find in editor
+  var model = monacoEditor.getModel();
+  var matches = model.findMatches(searchText, false, false, false, null, false);
+  
+  if (matches.length > 0) {
+    var match = matches[0];
+    
+    // Find the full tag/element range
+    var startLine = match.range.startLineNumber;
+    var endLine = startLine;
+    
+    // Look for closing tag or end of self-closing tag
+    var lineCount = model.getLineCount();
+    var openTags = 1;
+    var closingTag = '</' + tagName + '>';
+    
+    for (var i = startLine; i <= Math.min(startLine + 50, lineCount); i++) {
+      var lineContent = model.getLineContent(i);
+      if (lineContent.includes(closingTag)) {
+        endLine = i;
+        break;
+      }
+      if (lineContent.includes('/>') && i === startLine) {
+        endLine = i;
+        break;
+      }
+      endLine = i;
+    }
+    
+    // Select the range
+    var range = new monaco.Range(startLine, 1, endLine, model.getLineMaxColumn(endLine));
+    monacoEditor.setSelection(range);
+    monacoEditor.revealLineInCenter(startLine);
+    
+    // Flash highlight effect
+    var decorations = monacoEditor.deltaDecorations([], [{
+      range: range,
+      options: { 
+        className: 'highlighted-line',
+        isWholeLine: true
+      }
+    }]);
+    
+    setTimeout(function() {
+      monacoEditor.deltaDecorations(decorations, []);
+    }, 1500);
+  }
+  
+  monacoEditor.focus();
+}
+
+function toggleQuestionnaireFields() {
+  // For future use if questionnaire fields are added to sidebar
+}
+
+async function editPage(id) {
+  try {
+    const response = await fetch('/landing-pages/' + id);
+    const page = await response.json();
+    
+    document.getElementById('pageId').value = page.id;
+    document.getElementById('pageName').value = page.name || '';
+    document.getElementById('pageType').value = page.page_type || 'simple';
+    document.getElementById('captureData').checked = page.capture_data !== false;
+    document.getElementById('redirectUrl').value = page.redirect_url || '';
+    document.getElementById('editorTitle').textContent = 'Edit: ' + (page.name || 'Landing Page');
+    
+    openEditorModal();
+    
+    setTimeout(function() {
+      if (monacoEditor) {
+        monacoEditor.setValue(page.html_content || '');
+        updatePreview();
+      }
+    }, 300);
+  } catch(err) {
+    toastError('Error loading page: ' + err.message);
+  }
+}
+
+async function savePageFromEditor() {
+  const name = document.getElementById('pageName').value.trim();
+  const pageId = document.getElementById('pageId').value;
+  
+  if (!name) { toastWarning('Please enter a page name'); return; }
+  
+  const pageType = document.getElementById('pageType').value;
+  const htmlContent = monacoEditor ? monacoEditor.getValue() : '';
+  
+  const data = {
+    page_id: pageId,
+    name: name,
+    page_type: pageType,
+    html_content: htmlContent,
+    capture_data: document.getElementById('captureData').checked,
+    redirect_url: document.getElementById('redirectUrl').value,
+    questions: []
+  };
+  
+  try {
+    const url = pageId ? '/landing-pages/update' : '/landing-pages/create';
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    
+    const result = await response.json();
+    if (response.ok && result.success) {
+      toastSuccess('Landing page saved successfully!');
+      closeEditorModal();
+      loadPages();
+    } else {
+      toastError('Error saving: ' + (result.error || 'Unknown error'));
+    }
+  } catch(err) {
+    if (err.message === 'Failed to fetch') {
+      toastError('Cannot reach server — make sure the app is running and you have accepted the SSL certificate at ' + window.location.origin);
+    } else {
+      toastError('Error: ' + err.message);
+    }
+  }
+}
+
+function previewPage(id) {
+  const page = allPages.find(function(p) { return p.id === id; });
+  if (!page) return;
+  
+  var html = page.html_content || '';
+  html = html.replace(/\{\{email\}\}/g, 'user@example.com');
+  html = html.replace(/\{\{tracking_pixel\}\}/g, '<!-- tracking pixel -->');
+  
+  document.getElementById('previewModalTitle').textContent = page.name || 'Landing Page Preview';
+  document.getElementById('previewModalFrame').srcdoc = html;
+  document.getElementById('previewModal').classList.remove('hidden');
+}
+
+function closePreviewModal() {
+  document.getElementById('previewModal').classList.add('hidden');
+}
+
+async function duplicatePage(id) {
+  const confirmed = await showConfirm('Create a copy of this landing page?', {
+    title: 'Duplicate Page',
+    okText: 'Duplicate',
+    cancelText: 'Cancel',
+    okClass: 'primary'
+  });
+  if (!confirmed) return;
+  
+  try {
+    const response = await fetch('/landing-pages/' + id + '/duplicate', { method: 'POST' });
+    if (response.ok) { toastSuccess('Page duplicated!'); loadPages(); }
+    else toastError('Failed to duplicate page');
+  } catch(err) {
+    toastError('Error: ' + err.message);
+  }
+}
+
+async function deletePage(id) {
+  const confirmed = await showConfirm('Are you sure you want to delete this landing page?', {
+    title: 'Delete Landing Page',
+    okText: 'Delete',
+    cancelText: 'Cancel'
+  });
+  if (!confirmed) return;
+  
+  try {
+    const response = await fetch('/landing-pages/' + id + '/delete', { method: 'POST' });
+    if (response.ok) { toastSuccess('Page deleted!'); loadPages(); }
+    else toastError('Failed to delete page');
+  } catch(err) {
+    toastError('Error: ' + err.message);
+  }
+}
+
+function insertVariable(varName) {
+  if (!monacoEditor) return;
+  const selection = monacoEditor.getSelection();
+  monacoEditor.executeEdits('', [{ range: selection, text: '{{' + varName + '}}' }]);
+  monacoEditor.focus();
+}
+
+async function formatDoc(cmd) {
+  if (!monacoEditor) return;
+  var sel = monacoEditor.getSelection();
+  var selectedText = monacoEditor.getModel().getValueInRange(sel);
+  var newText = selectedText;
+
+  if (cmd === 'bold') newText = '<strong>' + selectedText + '</strong>';
+  else if (cmd === 'italic') newText = '<em>' + selectedText + '</em>';
+  else if (cmd === 'underline') newText = '<u>' + selectedText + '</u>';
+  else if (cmd === 'heading') newText = '<h2>' + selectedText + '</h2>';
+  else if (cmd === 'paragraph') newText = '<p>' + selectedText + '</p>';
+  else if (cmd === 'link') {
+    var url = await showPrompt('Enter URL:', 'https://');
+    if (url) newText = '<a href="' + url + '">' + (selectedText || 'Link text') + '</a>';
+  } else if (cmd === 'image') {
+    var imgUrl = await showPrompt('Enter image URL:', 'https://');
+    if (imgUrl) newText = '<img src="' + imgUrl + '" alt="Image" style="max-width:100%;">';
+  } else if (cmd === 'table') {
+    newText = '<table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse;">\n  <tr><th>Header 1</th><th>Header 2</th></tr>\n  <tr><td>Cell 1</td><td>Cell 2</td></tr>\n</table>';
+  }
+
+  monacoEditor.executeEdits('', [{ range: sel, text: newText }]);
+  monacoEditor.focus();
+}
+
+function insertFormField(type) {
+  if (!monacoEditor) return;
+  const selection = monacoEditor.getSelection();
+  var html = '';
+  
+  if (type === 'text') {
+    html = '<input type="text" name="field_name" placeholder="Enter text" style="width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">';
+  } else if (type === 'email') {
+    html = '<input type="email" name="username" placeholder="Email address" required style="width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">';
+  } else if (type === 'password') {
+    html = '<input type="password" name="password" placeholder="Password" required style="width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">';
+  } else if (type === 'button') {
+    html = '<button type="submit" style="width: 100%; padding: 12px; background: #0067b8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: 600;">Submit</button>';
+  } else if (type === 'select') {
+    html = '<label style="display: block; margin: 15px 0 5px 0; font-weight: bold; color: #555;">Select an option *</label>\n<select name="dropdown_field" required style="width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">\n  <option value="">-- Select --</option>\n  <option value="option1">Option 1</option>\n  <option value="option2">Option 2</option>\n  <option value="option3">Option 3</option>\n</select>';
+  } else if (type === 'checkbox') {
+    html = '<label style="display: flex; align-items: center; gap: 8px; margin: 10px 0; cursor: pointer;">\n  <input type="checkbox" name="checkbox_field" value="yes" style="width: 18px; height: 18px;">\n  <span style="color: #555;">I agree to the terms and conditions</span>\n</label>';
+  } else if (type === 'radio') {
+    html = '<div style="margin: 15px 0;">\n  <label style="display: block; margin-bottom: 8px; font-weight: bold; color: #555;">Choose one option *</label>\n  <label style="display: flex; align-items: center; gap: 8px; margin: 5px 0; cursor: pointer;">\n    <input type="radio" name="radio_field" value="option1" required style="width: 18px; height: 18px;">\n    <span>Option 1</span>\n  </label>\n  <label style="display: flex; align-items: center; gap: 8px; margin: 5px 0; cursor: pointer;">\n    <input type="radio" name="radio_field" value="option2" style="width: 18px; height: 18px;">\n    <span>Option 2</span>\n  </label>\n</div>';
+  } else if (type === 'textarea') {
+    html = '<label style="display: block; margin: 15px 0 5px 0; font-weight: bold; color: #555;">Comments</label>\n<textarea name="comments" rows="4" placeholder="Enter your comments..." style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; resize: vertical;"></textarea>';
+  }
+  
+  monacoEditor.executeEdits('', [{ range: selection, text: html }]);
+  monacoEditor.focus();
+}
+
+// Questionnaire Builder Functions
+var questionCounter = 0;
+var questions = [];
+
+function toggleQuestionnaireFields() {
+  var pageType = document.getElementById('pageType').value;
+  var builder = document.getElementById('questionnaireBuilder');
+  if (pageType === 'questionnaire') {
+    builder.classList.remove('hidden');
+  } else {
+    builder.classList.add('hidden');
+  }
+}
+
+function addQuestion() {
+  questionCounter++;
+  var qId = 'q_' + questionCounter;
+  var questionHtml = '<div class="bg-slate-900 rounded p-2 border border-slate-600" id="' + qId + '">' +
+    '<div class="flex items-center gap-2 mb-2">' +
+      '<input type="text" placeholder="Question text" class="flex-1 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-100 text-xs" id="' + qId + '_text">' +
+      '<button onclick="removeQuestion(\'' + qId + '\')" class="text-red-400 hover:text-red-300 text-xs"><i class="fas fa-times"></i></button>' +
+    '</div>' +
+    '<div class="flex gap-2">' +
+      '<select class="flex-1 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-100 text-xs" id="' + qId + '_type" onchange="toggleOptions(\'' + qId + '\')">' +
+        '<option value="text">Text</option>' +
+        '<option value="email">Email</option>' +
+        '<option value="select">Dropdown</option>' +
+        '<option value="radio">Radio</option>' +
+        '<option value="checkbox">Checkbox</option>' +
+        '<option value="textarea">Text Area</option>' +
+      '</select>' +
+      '<label class="flex items-center gap-1 text-slate-400 text-xs">' +
+        '<input type="checkbox" id="' + qId + '_required" checked class="rounded">' +
+        '<span>Req</span>' +
+      '</label>' +
+    '</div>' +
+    '<div id="' + qId + '_options" class="hidden mt-2">' +
+      '<input type="text" placeholder="Options (comma separated)" class="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-100 text-xs" id="' + qId + '_opts">' +
+    '</div>' +
+  '</div>';
+  
+  document.getElementById('questionsList').insertAdjacentHTML('beforeend', questionHtml);
+}
+
+function removeQuestion(qId) {
+  var el = document.getElementById(qId);
+  if (el) el.remove();
+}
+
+function toggleOptions(qId) {
+  var type = document.getElementById(qId + '_type').value;
+  var optionsDiv = document.getElementById(qId + '_options');
+  if (type === 'select' || type === 'radio') {
+    optionsDiv.classList.remove('hidden');
+  } else {
+    optionsDiv.classList.add('hidden');
+  }
+}
+
+function generateQuestionnaireHtml() {
+  var questionDivs = document.querySelectorAll('#questionsList > div');
+  if (questionDivs.length === 0) {
+    toastWarning('Please add at least one question');
+    return;
+  }
+  
+  var formFields = '';
+  questionDivs.forEach(function(div, index) {
+    var qId = div.id;
+    var text = document.getElementById(qId + '_text').value || 'Question ' + (index + 1);
+    var type = document.getElementById(qId + '_type').value;
+    var required = document.getElementById(qId + '_required').checked;
+    var reqAttr = required ? ' required' : '';
+    var reqStar = required ? ' *' : '';
+    var fieldName = 'field_' + (index + 1);
+    var opts = (document.getElementById(qId + '_opts').value || 'Option 1,Option 2,Option 3').split(',').map(function(o) { return o.trim(); });
+    
+    formFields += '      <label style="display: block; margin: 20px 0 8px 0; font-weight: bold; color: #555;">' + text + reqStar + '</label>\n';
+    
+    if (type === 'text') {
+      formFields += '      <input type="text" name="' + fieldName + '" placeholder="Enter your answer"' + reqAttr + ' style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">\n';
+    } else if (type === 'email') {
+      formFields += '      <input type="email" name="' + fieldName + '" placeholder="Enter email"' + reqAttr + ' style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">\n';
+    } else if (type === 'textarea') {
+      formFields += '      <textarea name="' + fieldName + '" rows="3" placeholder="Enter your answer"' + reqAttr + ' style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;"></textarea>\n';
+    } else if (type === 'select') {
+      formFields += '      <select name="' + fieldName + '"' + reqAttr + ' style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">\n';
+      formFields += '        <option value="">-- Select --</option>\n';
+      opts.forEach(function(opt) {
+        formFields += '        <option value="' + opt.toLowerCase().replace(/\s+/g, '_') + '">' + opt + '</option>\n';
+      });
+      formFields += '      </select>\n';
+    } else if (type === 'radio') {
+      opts.forEach(function(opt, i) {
+        var checked = i === 0 && required ? '' : '';
+        formFields += '      <label style="display: flex; align-items: center; gap: 8px; margin: 5px 0; cursor: pointer;">\n';
+        formFields += '        <input type="radio" name="' + fieldName + '" value="' + opt.toLowerCase().replace(/\s+/g, '_') + '"' + (i === 0 ? reqAttr : '') + '>\n';
+        formFields += '        <span>' + opt + '</span>\n';
+        formFields += '      </label>\n';
+      });
+    } else if (type === 'checkbox') {
+      formFields += '      <label style="display: flex; align-items: center; gap: 8px; margin: 5px 0; cursor: pointer;">\n';
+      formFields += '        <input type="checkbox" name="' + fieldName + '" value="yes"' + reqAttr + '>\n';
+      formFields += '        <span>Yes</span>\n';
+      formFields += '      </label>\n';
+    }
+  });
+  
+  var html = '<!DOCTYPE html>\n<html>\n<head>\n  <meta charset="UTF-8">\n  <title>Survey</title>\n  <style>\n    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }\n    .container { max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }\n    h1 { color: #333; margin: 0 0 10px 0; }\n    .subtitle { color: #666; margin-bottom: 30px; }\n    button { width: 100%; background: #4CAF50; color: white; padding: 14px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: 600; margin-top: 20px; }\n    button:hover { background: #45a049; }\n  </style>\n</head>\n<body>\n  {{tracking_pixel}}\n  <div class="container">\n    <h1>Survey</h1>\n    <p class="subtitle">Please answer the following questions.</p>\n    <form method="POST">\n' + formFields + '      <button type="submit">Submit</button>\n    </form>\n  </div>\n</body>\n</html>';
+  
+  monacoEditor.setValue(html);
+  updatePreview();
+}
+
+function loadQuickTemplate(type) {
+  if (!monacoEditor) return;
+  
+  var html = '';
+  if (type === 'microsoft') {
+    html = '<!DOCTYPE html>\n<html>\n<head>\n  <meta charset="UTF-8">\n  <title>Sign In - Microsoft Account</title>\n  <style>\n    body { font-family: Segoe UI, Tahoma, sans-serif; margin: 0; padding: 0; background: #f0f0f0; }\n    .container { max-width: 440px; margin: 100px auto; background: white; padding: 44px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }\n    .logo { text-align: center; margin-bottom: 24px; }\n    h1 { font-size: 24px; font-weight: 600; margin: 0 0 16px 0; }\n    input { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #8c8c8c; box-sizing: border-box; }\n    button { width: 100%; padding: 10px; background: #0067b8; color: white; border: none; cursor: pointer; font-size: 15px; }\n  </style>\n</head>\n<body>\n  {{tracking_pixel}}\n  <div class="container">\n    <div class="logo">\n      <img src="https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg" alt="Microsoft" style="height: 24px;">\n    </div>\n    <h1>Sign in</h1>\n    <p style="margin: 16px 0;">Sign in to your account</p>\n    <form method="POST">\n      <input type="email" name="username" placeholder="Email, phone, or Skype" required>\n      <input type="password" name="password" placeholder="Password" required>\n      <button type="submit">Sign in</button>\n    </form>\n  </div>\n</body>\n</html>';
+    document.getElementById('pageType').value = 'credential_harvest';
+  } else if (type === 'generic') {
+    html = '<!DOCTYPE html>\n<html>\n<head>\n  <meta charset="UTF-8">\n  <title>Secure Login</title>\n  <style>\n    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; }\n    .card { background: white; padding: 40px; border-radius: 10px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); max-width: 400px; width: 100%; }\n    h2 { margin: 0 0 10px 0; color: #333; }\n    p { color: #666; margin-bottom: 30px; }\n    input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }\n    button { width: 100%; padding: 12px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; }\n  </style>\n</head>\n<body>\n  {{tracking_pixel}}\n  <div class="card">\n    <h2>Welcome Back!</h2>\n    <p>Please sign in to continue</p>\n    <form method="POST">\n      <input type="email" name="username" placeholder="Email Address" required>\n      <input type="password" name="password" placeholder="Password" required>\n      <button type="submit">Sign In</button>\n    </form>\n  </div>\n</body>\n</html>';
+    document.getElementById('pageType').value = 'credential_harvest';
+  } else if (type === 'survey') {
+    html = '<!DOCTYPE html>\n<html>\n<head>\n  <meta charset="UTF-8">\n  <title>Employee Survey</title>\n  <style>\n    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }\n    .container { max-width: 700px; margin: 0 auto; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }\n    h1 { color: #333; margin-bottom: 10px; }\n    p { color: #666; margin-bottom: 30px; }\n    label { display: block; margin: 20px 0 8px 0; font-weight: bold; color: #555; }\n    input, textarea, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }\n    button { background: #4CAF50; color: white; padding: 12px 30px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; margin-top: 20px; }\n  </style>\n</head>\n<body>\n  {{tracking_pixel}}\n  <div class="container">\n    <h1>Employee Feedback Survey</h1>\n    <p>Your feedback helps us improve.</p>\n    <form method="POST">\n      <label>Full Name *</label>\n      <input type="text" name="full_name" required>\n      <label>Department *</label>\n      <select name="department" required>\n        <option value="">-- Select --</option>\n        <option value="IT">IT</option>\n        <option value="HR">HR</option>\n        <option value="Finance">Finance</option>\n      </select>\n      <label>Comments</label>\n      <textarea name="comments" rows="4"></textarea>\n      <button type="submit">Submit Survey</button>\n    </form>\n  </div>\n</body>\n</html>';
+    document.getElementById('pageType').value = 'questionnaire';
+  }
+  
+  monacoEditor.setValue(html);
+  updatePreview();
+}
+
+function getDefaultLandingPage() {
+  return '<!DOCTYPE html>\n<html>\n<head>\n  <meta charset="UTF-8">\n  <title>Landing Page</title>\n  <style>\n    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; min-height: 100vh; display: flex; align-items: center; justify-content: center; }\n    .container { background: white; padding: 40px; border-radius: 10px; box-shadow: 0 5px 25px rgba(0,0,0,0.1); max-width: 450px; width: 100%; }\n    h2 { margin: 0 0 20px 0; color: #333; }\n    p { color: #666; line-height: 1.6; }\n    input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }\n    button { width: 100%; padding: 14px; background: #007bff; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: 600; }\n  </style>\n</head>\n<body>\n  {{tracking_pixel}}\n  <div class="container">\n    <h2>Welcome</h2>\n    <p>Your content here</p>\n    <form method="POST">\n      <input type="email" name="username" placeholder="Email" required>\n      <input type="password" name="password" placeholder="Password" required>\n      <button type="submit">Continue</button>\n    </form>\n  </div>\n</body>\n</html>';
+}
+</script>
+{% endraw %}
+{% endblock %}
+
+{% block modals %}
+<!-- Full Screen Editor Modal -->
+<div id="editorModal" class="hidden fixed inset-0 bg-white dark:bg-slate-900 z-50 flex flex-col animate-fade-in">
+  <!-- Top Bar -->
+  <div class="h-14 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between px-4 shrink-0">
+    <div class="flex items-center gap-4">
+      <button onclick="closeEditorModal()" class="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 p-2 transition-colors">
+        <i class="fas fa-arrow-left"></i>
+      </button>
+      <span class="text-slate-900 dark:text-slate-100 font-semibold" id="editorTitle">New Landing Page</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <button type="button" onclick="savePageFromEditor()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-medium shadow-lg btn-hover">
+        <i class="fas fa-save mr-2"></i> Save Landing Page
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="flex-1 flex min-h-0">
+    <!-- Left Sidebar -->
+    <div class="w-80 bg-slate-50 dark:bg-slate-900 border-r border-slate-200 dark:border-slate-700 flex flex-col shrink-0 overflow-y-auto">
+      <div class="p-4 space-y-5">
+        <input type="hidden" id="pageId" value="">
+        
+        <!-- Page Name -->
+        <div class="space-y-2">
+          <label class="text-slate-700 dark:text-slate-300 text-sm font-medium">Page Name *</label>
+          <input type="text" id="pageName" placeholder="e.g., Microsoft Login Portal" class="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-blue-500 input-focus">
+        </div>
+        
+        <!-- Page Type -->
+        <div class="space-y-2">
+          <label class="text-slate-700 dark:text-slate-300 text-sm font-medium">Page Type *</label>
+          <select id="pageType" onchange="toggleQuestionnaireFields()" class="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-blue-500 input-focus">
+            <option value="simple" class="bg-white dark:bg-slate-900">Simple (Information Only)</option>
+            <option value="credential_harvest" class="bg-white dark:bg-slate-900">Credential Harvest</option>
+            <option value="questionnaire" class="bg-white dark:bg-slate-900">Questionnaire</option>
+          </select>
+        </div>
+
+        <!-- Capture Data -->
+        <div class="space-y-2">
+          <label class="flex items-center gap-2 text-slate-300 cursor-pointer">
+            <input type="checkbox" id="captureData" checked class="rounded border-white/10 bg-white/5 text-primary focus:ring-primary">
+            <span class="text-sm">Capture submitted data</span>
+          </label>
+        </div>
+
+        <!-- Redirect URL -->
+        <div class="space-y-2">
+          <label class="text-slate-300 text-sm font-medium">Redirect URL (after submit)</label>
+          <input type="url" id="redirectUrl" placeholder="https://www.example.com" class="w-full glass-panel border border-white/10 rounded-lg px-3 py-2 text-slate-100 text-sm focus:outline-none focus:border-blue-500 input-focus">
+          <p class="text-xs text-slate-500">Leave empty to show success message</p>
+        </div>
+
+        <!-- Variables -->
+        <div class="space-y-2">
+          <label class="text-slate-300 text-sm font-medium">Insert Variables</label>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" onclick="insertVariable('email')" class="px-2 py-1 bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 rounded text-xs border border-blue-600/30 transition-colors">{{email}}</button>
+            <button type="button" onclick="insertVariable('tracking_pixel')" class="px-2 py-1 bg-purple-600/20 hover:bg-purple-600/40 text-purple-400 rounded text-xs border border-purple-600/30 transition-colors">{{tracking_pixel}}</button>
+          </div>
+        </div>
+
+        <!-- Form Fields -->
+        <div class="space-y-2">
+          <label class="text-slate-300 text-sm font-medium">Insert Form Fields</label>
+          <div class="grid grid-cols-4 gap-1">
+            <button type="button" onclick="insertFormField('text')" class="p-2 bg-white/5 hover:bg-white/10 text-slate-200 rounded text-sm border border-white/10 transition-colors" title="Text Input"><i class="fas fa-font"></i></button>
+            <button type="button" onclick="insertFormField('email')" class="p-2 bg-white/5 hover:bg-white/10 text-slate-200 rounded text-sm border border-white/10 transition-colors" title="Email"><i class="fas fa-envelope"></i></button>
+            <button type="button" onclick="insertFormField('password')" class="p-2 bg-white/5 hover:bg-white/10 text-slate-200 rounded text-sm border border-white/10 transition-colors" title="Password"><i class="fas fa-key"></i></button>
+            <button type="button" onclick="insertFormField('button')" class="p-2 bg-white/5 hover:bg-white/10 text-slate-200 rounded text-sm border border-white/10 transition-colors" title="Submit Button"><i class="fas fa-paper-plane"></i></button>
+          </div>
+          <div class="grid grid-cols-4 gap-1 mt-1">
+            <button type="button" onclick="insertFormField('select')" class="p-2 bg-white/5 hover:bg-white/10 text-slate-200 rounded text-sm border border-white/10 transition-colors" title="Dropdown"><i class="fas fa-caret-square-down"></i></button>
+            <button type="button" onclick="insertFormField('checkbox')" class="p-2 bg-white/5 hover:bg-white/10 text-slate-200 rounded text-sm border border-white/10 transition-colors" title="Checkbox"><i class="fas fa-check-square"></i></button>
+            <button type="button" onclick="insertFormField('radio')" class="p-2 bg-white/5 hover:bg-white/10 text-slate-200 rounded text-sm border border-white/10 transition-colors" title="Radio Buttons"><i class="fas fa-dot-circle"></i></button>
+            <button type="button" onclick="insertFormField('textarea')" class="p-2 bg-white/5 hover:bg-white/10 text-slate-200 rounded text-sm border border-white/10 transition-colors" title="Text Area"><i class="fas fa-align-left"></i></button>
+          </div>
+        </div>
+
+        <!-- Questionnaire Builder (shown when type is questionnaire) -->
+        <div id="questionnaireBuilder" class="space-y-3 hidden">
+          <div class="flex items-center justify-between">
+            <label class="text-slate-300 text-sm font-medium">Questions</label>
+            <button type="button" onclick="addQuestion()" class="px-2 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs transition-colors">
+              <i class="fas fa-plus mr-1"></i> Add
+            </button>
+          </div>
+          <div id="questionsList" class="space-y-2 max-h-48 overflow-y-auto">
+            <!-- Questions will be added here dynamically -->
+          </div>
+          <button type="button" onclick="generateQuestionnaireHtml()" class="w-full px-3 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded text-sm font-medium transition-colors">
+            <i class="fas fa-magic mr-2"></i> Generate Form HTML
+          </button>
+        </div>
+
+        <!-- Quick Templates -->
+        <div class="space-y-2">
+          <label class="text-slate-300 text-sm font-medium">Quick Templates</label>
+          <div class="space-y-2">
+            <button type="button" onclick="loadQuickTemplate('microsoft')" class="w-full px-3 py-2 bg-white/5 hover:bg-white/10 text-slate-200 rounded text-sm text-left border border-white/10 transition-colors">
+              <i class="fas fa-window-maximize mr-2 text-blue-400"></i> Microsoft Login
+            </button>
+            <button type="button" onclick="loadQuickTemplate('generic')" class="w-full px-3 py-2 bg-white/5 hover:bg-white/10 text-slate-200 rounded text-sm text-left border border-white/10 transition-colors">
+              <i class="fas fa-sign-in-alt mr-2 text-purple-400"></i> Generic Login
+            </button>
+            <button type="button" onclick="loadQuickTemplate('survey')" class="w-full px-3 py-2 bg-white/5 hover:bg-white/10 text-slate-200 rounded text-sm text-left border border-white/10 transition-colors">
+              <i class="fas fa-poll mr-2 text-green-400"></i> Survey Form
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Editor Area with Toolbar -->
+    <div class="flex-1 flex flex-col min-w-0">
+      <!-- Formatting Toolbar -->
+      <div class="h-10 glass-panel border-b border-white/10 flex items-center px-2 gap-1 shrink-0 bg-white/5">
+        <button type="button" onclick="formatDoc('bold')" class="p-2 text-slate-400 hover:text-slate-200 hover:bg-white/10 rounded transition-colors" title="Bold"><i class="fas fa-bold"></i></button>
+        <button type="button" onclick="formatDoc('italic')" class="p-2 text-slate-400 hover:text-slate-200 hover:bg-white/10 rounded transition-colors" title="Italic"><i class="fas fa-italic"></i></button>
+        <button type="button" onclick="formatDoc('underline')" class="p-2 text-slate-400 hover:text-slate-200 hover:bg-white/10 rounded transition-colors" title="Underline"><i class="fas fa-underline"></i></button>
+        <div class="w-px h-5 bg-white/10 mx-1"></div>
+        <button type="button" onclick="formatDoc('heading')" class="p-2 text-slate-400 hover:text-slate-200 hover:bg-white/10 rounded transition-colors" title="Heading"><i class="fas fa-heading"></i></button>
+        <button type="button" onclick="formatDoc('paragraph')" class="p-2 text-slate-400 hover:text-slate-200 hover:bg-white/10 rounded transition-colors" title="Paragraph"><i class="fas fa-paragraph"></i></button>
+        <div class="w-px h-5 bg-white/10 mx-1"></div>
+        <button type="button" onclick="formatDoc('link')" class="p-2 text-slate-400 hover:text-slate-200 hover:bg-white/10 rounded transition-colors" title="Insert Link"><i class="fas fa-link"></i></button>
+        <button type="button" onclick="formatDoc('image')" class="p-2 text-slate-400 hover:text-slate-200 hover:bg-white/10 rounded transition-colors" title="Insert Image"><i class="fas fa-image"></i></button>
+        <button type="button" onclick="formatDoc('table')" class="p-2 text-slate-400 hover:text-slate-200 hover:bg-white/10 rounded transition-colors" title="Insert Table"><i class="fas fa-table"></i></button>
+        <div class="flex-1"></div>
+        <span class="text-slate-500 text-xs uppercase tracking-wider mr-2">HTML Code</span>
+      </div>
+      <div class="flex-1 flex min-h-0">
+        <!-- Code Editor - 50% -->
+        <div class="w-1/2 flex flex-col border-r border-white/10">
+          <div id="monacoContainer" class="flex-1"></div>
+        </div>
+        <!-- Preview Panel - 50% -->
+        <div class="w-1/2 flex flex-col">
+          <div class="h-8 bg-white/5 border-b border-white/10 flex items-center justify-center px-3">
+            <span class="text-slate-500 text-xs uppercase tracking-wider"><i class="fas fa-eye mr-2"></i> Live Preview</span>
+          </div>
+          <div class="flex-1 bg-white overflow-auto">
+            <iframe id="previewFrame" class="w-full h-full border-0"></iframe>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Preview Modal -->
+<div id="previewModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in">
+  <div class="bg-white rounded-xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
+    <div class="p-4 bg-slate-900 border-b border-slate-800 flex justify-between items-center">
+      <h3 class="text-xl font-bold text-slate-100" id="previewModalTitle">Landing Page Preview</h3>
+      <button onclick="closePreviewModal()" class="text-slate-400 hover:text-slate-200 text-2xl transition-colors">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="flex-1 overflow-auto">
+      <iframe id="previewModalFrame" class="w-full h-full" style="min-height: 600px;"></iframe>
+    </div>
+  </div>
+</div>
+{% endblock %}
+

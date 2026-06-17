@@ -1,0 +1,1039 @@
+{% extends "base.html" %}
+
+{% block title %}Targets - PhishSim{% endblock %}
+
+{% block content %}
+<!-- SheetJS for Excel parsing -->
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+
+<div class="space-y-6 animate-fade-in max-w-[95%] mx-auto">
+  <div class="flex justify-between items-center">
+    <div>
+      <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100">Target Management</h1>
+      <p class="text-slate-500 dark:text-slate-400">View and manage target recipients across campaigns</p>
+    </div>
+    <div class="flex gap-3">
+      <button onclick="showImportModal()" class="flex items-center px-4 py-2 glass-panel hover:bg-slate-100 dark:hover:bg-white/10 text-slate-700 dark:text-slate-200 rounded-lg border border-slate-200 dark:border-white/10 transition-all btn-hover">
+        <i class="fas fa-upload mr-2"></i> Import CSV/XLSX
+      </button>
+      <button onclick="exportTargets()" class="flex items-center px-4 py-2 glass-panel hover:bg-slate-100 dark:hover:bg-white/10 text-slate-700 dark:text-slate-200 rounded-lg border border-slate-200 dark:border-white/10 transition-all btn-hover">
+        <i class="fas fa-download mr-2"></i> Export
+      </button>
+      <button onclick="showSbuPasteModal()" class="flex items-center px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-lg transition-all btn-hover shadow-lg shadow-violet-900/20">
+        <i class="fas fa-paste mr-2"></i> Paste by SBU
+      </button>
+      <button onclick="showAddTargetModal()" class="flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-all btn-hover shadow-lg shadow-emerald-900/20">
+        <i class="fas fa-user-plus mr-2"></i> Add Target
+      </button>
+      <a href="{{ url_for('campaigns.create_campaign_step1') }}" class="flex items-center px-4 py-2 bg-primary hover:bg-blue-500 text-white rounded-lg shadow-lg shadow-blue-900/20 transition-all btn-hover">
+        <i class="fas fa-plus mr-2"></i> New Campaign
+      </a>
+    </div>
+  </div>
+
+  <!-- Stats Grid -->
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <div class="glass-card p-6 rounded-xl border border-slate-200 dark:border-white/10">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm text-slate-500 dark:text-slate-400 font-medium">Total Targets</p>
+          <p class="text-3xl font-bold text-slate-900 dark:text-slate-100 mt-1" id="totalTargets">{{ targets|length }}</p>
+        </div>
+        <div class="p-3 bg-blue-500/10 rounded-lg">
+          <i class="fas fa-users text-blue-600 dark:text-blue-400 text-xl"></i>
+        </div>
+      </div>
+    </div>
+    
+    <div class="glass-card p-6 rounded-xl border border-slate-200 dark:border-white/10">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm text-slate-500 dark:text-slate-400 font-medium">Unique Emails</p>
+          <p class="text-3xl font-bold text-slate-900 dark:text-slate-100 mt-1" id="uniqueEmails">{{ targets|map(attribute='email')|unique|list|length }}</p>
+        </div>
+        <div class="p-3 bg-purple-500/10 rounded-lg">
+          <i class="fas fa-envelope text-purple-600 dark:text-purple-400 text-xl"></i>
+        </div>
+      </div>
+    </div>
+    
+    <div class="glass-card p-6 rounded-xl border border-slate-200 dark:border-white/10">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm text-slate-500 dark:text-slate-400 font-medium">In Campaigns</p>
+          <p class="text-3xl font-bold text-slate-900 dark:text-slate-100 mt-1">{{ targets|selectattr('campaign_id')|list|length }}</p>
+        </div>
+        <div class="p-3 bg-emerald-500/10 rounded-lg">
+          <i class="fas fa-paper-plane text-emerald-600 dark:text-emerald-400 text-xl"></i>
+        </div>
+      </div>
+    </div>
+
+    <div class="glass-card p-6 rounded-xl border border-slate-200 dark:border-white/10">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm text-slate-500 dark:text-slate-400 font-medium">Selected</p>
+          <p class="text-3xl font-bold text-slate-900 dark:text-slate-100 mt-1" id="selectedCount">0</p>
+        </div>
+        <div class="p-3 bg-yellow-500/10 rounded-lg">
+          <i class="fas fa-check-square text-yellow-600 dark:text-yellow-400 text-xl"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters and Search -->
+  <div class="glass-card p-4 rounded-xl border border-slate-200 dark:border-white/10">
+    <div class="flex flex-wrap items-center gap-3">
+      <div class="relative flex-1 min-w-[300px]">
+        <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 dark:text-slate-500"></i>
+        <input 
+          type="text" 
+          id="searchInput"
+          placeholder="Search by name, email, SBU, position, or campaign..." 
+          class="w-full glass-panel border border-slate-300 dark:border-white/10 rounded-lg pl-10 pr-4 py-2 text-sm text-slate-900 dark:text-slate-200 focus:outline-none focus:border-primary input-focus bg-white dark:bg-transparent"
+          onkeyup="filterTargets()"
+        />
+      </div>
+      <select id="sbuFilter" onchange="filterTargets()" class="glass-panel border border-slate-300 dark:border-white/10 rounded-lg px-4 py-2 text-sm text-slate-900 dark:text-slate-200 focus:outline-none focus:border-primary input-focus bg-white dark:bg-transparent">
+        <option value="" class="bg-white dark:bg-slate-900">All SBUs</option>
+        {% for sbu in targets|map(attribute='sbu')|unique|list %}
+          {% if sbu %}
+          <option value="{{ sbu }}" class="bg-white dark:bg-slate-900">{{ sbu }}</option>
+          {% endif %}
+        {% endfor %}
+      </select>
+      <select id="campaignFilter" onchange="filterTargets()" class="glass-panel border border-slate-300 dark:border-white/10 rounded-lg px-4 py-2 text-sm text-slate-900 dark:text-slate-200 focus:outline-none focus:border-primary input-focus bg-white dark:bg-transparent">
+        <option value="" class="bg-white dark:bg-slate-900">All Campaigns</option>
+        {% for campaign_id in targets|map(attribute='campaign_id')|unique|list %}
+          {% if campaign_id %}
+          <option value="{{ campaign_id }}" class="bg-white dark:bg-slate-900">Campaign #{{ campaign_id }}</option>
+          {% endif %}
+        {% endfor %}
+      </select>
+      <button onclick="showTagPastTargetsModal()" class="px-4 py-2 bg-yellow-600 hover:bg-yellow-500 text-white rounded-lg text-sm transition-colors btn-hover shadow-lg shadow-yellow-900/20">
+        <i class="fas fa-tag mr-2"></i> Tag Past Targets
+      </button>
+      <button onclick="deleteSelected()" class="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg text-sm transition-colors btn-hover shadow-lg shadow-red-900/20">
+        <i class="fas fa-trash mr-2"></i> Delete Selected
+      </button>
+    </div>
+  </div>
+
+  <!-- Pagination Info -->
+  <div class="flex justify-between items-center text-sm text-slate-500 dark:text-slate-400">
+    <div>
+      Showing <span id="showingStart">0</span> to <span id="showingEnd">0</span> of <span id="totalRows">0</span> results
+    </div>
+    <div class="flex gap-2">
+      <button onclick="previousPage()" id="prevBtn" class="px-3 py-1 glass-panel hover:bg-slate-100 dark:hover:bg-white/10 rounded text-slate-500 dark:text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors border border-slate-200 dark:border-white/10">
+        <i class="fas fa-chevron-left"></i> Previous
+      </button>
+      <span class="px-3 py-1">Page <span id="currentPage">1</span> of <span id="totalPages">1</span></span>
+      <button onclick="nextPage()" id="nextBtn" class="px-3 py-1 glass-panel hover:bg-slate-100 dark:hover:bg-white/10 rounded text-slate-500 dark:text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors border border-slate-200 dark:border-white/10">
+        Next <i class="fas fa-chevron-right"></i>
+      </button>
+    </div>
+  </div>
+
+  {% if targets %}
+  <div class="glass-card rounded-xl border border-slate-200 dark:border-white/10 overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-left text-sm text-slate-600 dark:text-slate-400" id="targetsTable">
+        <thead class="bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-slate-200 uppercase font-medium text-xs">
+          <tr>
+            <th class="px-6 py-4 w-8">
+              <input type="checkbox" onchange="toggleAllTargets(this)" class="rounded border-slate-300 dark:border-white/10 bg-white dark:bg-white/5 text-primary focus:ring-primary" id="selectAll">
+            </th>
+            <th class="px-6 py-4 cursor-pointer hover:text-slate-900 dark:hover:text-slate-100 transition-colors" onclick="sortTable('firstName')">
+              First Name <i class="fas fa-sort ml-1"></i>
+            </th>
+            <th class="px-6 py-4 cursor-pointer hover:text-slate-900 dark:hover:text-slate-100 transition-colors" onclick="sortTable('lastName')">
+              Last Name <i class="fas fa-sort ml-1"></i>
+            </th>
+            <th class="px-6 py-4 cursor-pointer hover:text-slate-900 dark:hover:text-slate-100 transition-colors" onclick="sortTable('email')">
+              Email <i class="fas fa-sort ml-1"></i>
+            </th>
+            <th class="px-6 py-4 cursor-pointer hover:text-slate-900 dark:hover:text-slate-100 transition-colors" onclick="sortTable('sbu')">
+              SBU <i class="fas fa-sort ml-1"></i>
+            </th>
+            <th class="px-6 py-4 cursor-pointer hover:text-slate-900 dark:hover:text-slate-100 transition-colors" onclick="sortTable('position')">
+              Position <i class="fas fa-sort ml-1"></i>
+            </th>
+            <th class="px-6 py-4 text-center">Past Target</th>
+            <th class="px-6 py-4 text-center">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-200 dark:divide-white/5" id="targetsBody">
+          {% for t in targets %}
+          <tr class="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors target-row" 
+              data-id="{{ t.id }}" 
+              data-firstname="{{ t.first_name or '' }}"
+              data-lastname="{{ t.last_name or '' }}"
+              data-email="{{ t.email }}"
+              data-sbu="{{ t.sbu or '' }}"
+              data-position="{{ t.position or '' }}"
+              data-pasttarget="{{ t.past_target or 0 }}"
+              data-campaign="{{ t.campaign_id or '' }}">
+            <td class="px-6 py-4">
+              <input type="checkbox" class="rounded border-slate-300 dark:border-white/10 bg-white dark:bg-white/5 text-primary focus:ring-primary target-checkbox" data-id="{{ t.id }}" onchange="updateSelectedCount()">
+            </td>
+            <td class="px-6 py-4 font-medium text-slate-900 dark:text-slate-200">{{ t.first_name or '-' }}</td>
+            <td class="px-6 py-4 font-medium text-slate-900 dark:text-slate-200">{{ t.last_name or '-' }}</td>
+            <td class="px-6 py-4">{{ t.email }}</td>
+            <td class="px-6 py-4">
+              {% if t.sbu %}
+                <span class="px-2 py-1 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded text-xs border border-blue-500/20">{{ t.sbu }}</span>
+              {% else %}
+                <span class="text-slate-400 dark:text-slate-500">-</span>
+              {% endif %}
+            </td>
+            <td class="px-6 py-4 text-slate-500 dark:text-slate-400">{{ t.position or '-' }}</td>
+            <td class="px-6 py-4 text-center">
+              {% if t.past_target %}
+                <i class="fas fa-check-circle text-orange-500 text-lg" title="Past Target"></i>
+              {% else %}
+                <span class="text-slate-300 dark:text-slate-700">-</span>
+              {% endif %}
+            </td>
+            <td class="px-6 py-4 text-center">
+              <button onclick="editTarget({{ t.id }}, '{{ t.first_name or '' }}', '{{ t.last_name or '' }}', '{{ t.email }}')" class="text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 dark:hover:text-emerald-300 mr-3 transition-colors">
+                <i class="fas fa-edit"></i>
+              </button>
+              <button onclick="deleteTarget({{ t.id }})" class="text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 transition-colors">
+                <i class="fas fa-trash"></i>
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% else %}
+  <!-- Empty State -->
+  <div class="glass-card rounded-xl border border-slate-200 dark:border-white/10 p-12 text-center">
+    <div class="inline-flex items-center justify-center w-20 h-20 bg-slate-100 dark:bg-white/5 rounded-full mb-6">
+      <i class="fas fa-users text-slate-400 dark:text-slate-500 text-4xl"></i>
+    </div>
+    <h2 class="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-3">No Targets Yet</h2>
+    <p class="text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-6">
+      Import targets from CSV/XLSX files or add them manually to get started.
+    </p>
+    <div class="flex gap-3 justify-center">
+      <button onclick="showImportModal()" class="inline-flex items-center px-6 py-3 glass-panel hover:bg-slate-100 dark:hover:bg-white/10 text-slate-700 dark:text-white rounded-lg font-medium transition-all btn-hover border border-slate-200 dark:border-white/10">
+        <i class="fas fa-upload mr-2"></i> Import Targets
+      </button>
+      <a href="{{ url_for('campaigns.create_campaign_step1') }}" class="inline-flex items-center px-6 py-3 bg-primary hover:bg-blue-500 text-white rounded-lg font-medium transition-all btn-hover shadow-lg shadow-blue-900/20">
+        <i class="fas fa-plus mr-2"></i> Create First Campaign
+      </a>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+
+
+<script>
+let currentPage = 1;
+const rowsPerPage = 100;
+let allRows = [];
+let filteredRows = [];
+let currentSort = { column: null, direction: 'asc' };
+
+// Modal functions
+function showImportModal() {
+  document.getElementById('importModal').classList.remove('hidden');
+}
+
+function closeImportModal() {
+  document.getElementById('importModal').classList.add('hidden');
+  document.getElementById('importFile').value = '';
+}
+
+function showAddTargetModal() {
+  document.getElementById('addTargetModal').classList.remove('hidden');
+}
+
+function closeAddTargetModal() {
+  document.getElementById('addTargetModal').classList.add('hidden');
+  document.getElementById('addTargetForm').reset();
+}
+
+// Add target — registered in DOMContentLoaded (form is in the modals block)
+
+// Import processing
+async function processImport() {
+  const fileInput = document.getElementById('importFile');
+  const file = fileInput.files[0];
+  
+  if (!file) {
+    toastWarning('Please select a file');
+    return;
+  }
+  
+  const sbuName = document.getElementById('sbuName').value.trim();
+  if (!sbuName) {
+    toastWarning('Please enter an SBU/Business Unit name');
+    document.getElementById('sbuName').focus();
+    return;
+  }
+  
+  const domain = document.getElementById('emailDomain').value.trim() || 'example.com';
+  
+  if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+    await parseExcel(file, domain, sbuName);
+  } else {
+    await parseCSV(file, domain, sbuName);
+  }
+}
+
+async function parseExcel(file, domain, sbuName) {
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, {type: 'array'});
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(sheet, {header: 1});
+      
+      await sendTargetsToServer(rows, domain, sbuName);
+    } catch(err) {
+      toastError('Error parsing Excel: ' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+async function parseCSV(file, domain, sbuName) {
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    const content = e.target.result;
+    const rows = content.split(/\r?\n/).map(line => line.split(/[,;]/).map(cell => cell.trim()));
+    await sendTargetsToServer(rows, domain, sbuName);
+  };
+  reader.readAsText(file);
+}
+
+async function sendTargetsToServer(rows, domain, sbuName) {
+  const targets = [];
+  const startRow = rows[0].some(cell => /name|email/i.test(cell)) ? 1 : 0;
+  
+  for (let i = startRow; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row || !row[0]) continue;
+    
+    const firstName = String(row[0] || '').trim();
+    const lastName = String(row[1] || '').trim();
+    // Column 3 is position, not email - ignore it
+    const position = String(row[2] || '').trim();
+    
+    // Always generate email from firstname.lastname@domain
+    let email = '';
+    if (firstName && lastName) {
+      email = `${firstName.toLowerCase()}.${lastName.toLowerCase()}@${domain}`;
+    }
+    
+    if (firstName && lastName && email) {
+      targets.push({ 
+        first_name: firstName, 
+        last_name: lastName, 
+        email: email,
+        sbu: sbuName,
+        position: position
+      });
+    }
+  }
+  
+  if (targets.length === 0) {
+    toastWarning('No valid targets found. Expected FirstName in column 1 and LastName in column 2.');
+    return;
+  }
+  
+  try {
+    const response = await fetch('/targets/bulk_add', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({targets})
+    });
+    
+    if (response.ok) {
+      toastSuccess(`Imported ${targets.length} target(s) to SBU: ${sbuName}`);
+      closeImportModal();
+      setTimeout(() => location.reload(), 1000);
+    } else {
+      toastError('Failed to import targets');
+    }
+  } catch(err) {
+    toastError('Error: ' + err.message);
+  }
+}
+
+// Edit target
+async function editTarget(id, firstName, lastName, email) {
+  const newFirstName = await showPrompt('First Name:', firstName);
+  if (newFirstName === null) return;
+  
+  const newLastName = await showPrompt('Last Name:', lastName);
+  if (newLastName === null) return;
+  
+  const newEmail = await showPrompt('Email:', email);
+  if (newEmail === null) return;
+  
+  try {
+    const response = await fetch(`/targets/edit/${id}`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        first_name: newFirstName,
+        last_name: newLastName,
+        email: newEmail
+      })
+    });
+    
+    if (response.ok) {
+      toastSuccess('Target updated successfully!');
+      setTimeout(() => location.reload(), 1000);
+    } else {
+      toastError('Failed to update target');
+    }
+  } catch(err) {
+    toastError('Error: ' + err.message);
+  }
+}
+
+// Delete target
+async function deleteTarget(id) {
+  const confirmed = await showConfirm('Delete this target?', {
+    title: 'Delete Target',
+    okText: 'Delete',
+    cancelText: 'Cancel'
+  });
+  if (!confirmed) return;
+  
+  try {
+    const response = await fetch(`/targets/delete/${id}`, {method: 'POST'});
+    if (response.ok) {
+      toastSuccess('Target deleted!');
+      setTimeout(() => location.reload(), 1000);
+    } else {
+      toastError('Failed to delete target');
+    }
+  } catch(err) {
+    toastError('Error: ' + err.message);
+  }
+}
+
+// Delete selected
+async function deleteSelected() {
+  const checkboxes = document.querySelectorAll('.target-checkbox:checked');
+  if (checkboxes.length === 0) {
+    toastWarning('No targets selected');
+    return;
+  }
+  
+  const confirmed = await showConfirm(`Delete ${checkboxes.length} selected target(s)?`, {
+    title: 'Delete Targets',
+    okText: 'Delete All',
+    cancelText: 'Cancel'
+  });
+  if (!confirmed) return;
+  
+  const ids = Array.from(checkboxes).map(cb => cb.dataset.id);
+  
+  try {
+    const response = await fetch('/targets/bulk_delete', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ids})
+    });
+    
+    if (response.ok) {
+      toastSuccess(`Deleted ${ids.length} target(s)!`);
+      setTimeout(() => location.reload(), 1000);
+    } else {
+      toastError('Failed to delete targets');
+    }
+  } catch(err) {
+    toastError('Error: ' + err.message);
+  }
+}
+
+// Show history
+async function showHistory(id, email) {
+  try {
+    const response = await fetch('/campaigns/check_history', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({emails: [email]})
+    });
+    
+    const history = await response.json();
+    const campaigns = history[email] || [];
+    
+    if (campaigns.length === 0) {
+      toastInfo('This target has not been in any campaigns yet.');
+    } else {
+      toastInfo(`Campaign History for ${email}: ${campaigns.join(', ')}`);
+    }
+  } catch(err) {
+    toastError('Error loading history: ' + err.message);
+  }
+}
+
+// Export
+function exportTargets() {
+  const rows = Array.from(document.querySelectorAll('.target-row'));
+  const csv = [
+    ['First Name', 'Last Name', 'Email', 'Campaign'].join(','),
+    ...rows.map(row => {
+      const cells = row.querySelectorAll('td');
+      return [
+        cells[1].textContent.trim(),
+        cells[2].textContent.trim(),
+        cells[3].textContent.trim(),
+        cells[4].textContent.trim()
+      ].join(',');
+    })
+  ].join('\\n');
+  
+  const blob = new Blob([csv], {type: 'text/csv'});
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'targets_export.csv';
+  a.click();
+}
+
+// Toggle all checkboxes
+function toggleAllTargets(checkbox) {
+  document.querySelectorAll('.target-checkbox').forEach(cb => {
+    cb.checked = checkbox.checked;
+  });
+  updateSelectedCount();
+}
+
+// Update selected count
+function updateSelectedCount() {
+  const count = document.querySelectorAll('.target-checkbox:checked').length;
+  document.getElementById('selectedCount').textContent = count;
+}
+
+// Sort table
+function sortTable(column) {
+  const tbody = document.getElementById('targetsBody');
+  const rows = Array.from(tbody.querySelectorAll('.target-row'));
+  
+  if (currentSort.column === column) {
+    currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+  } else {
+    currentSort.column = column;
+    currentSort.direction = 'asc';
+  }
+  
+  rows.sort((a, b) => {
+    let aVal = a.dataset[column.toLowerCase()] || '';
+    let bVal = b.dataset[column.toLowerCase()] || '';
+    
+    if (currentSort.direction === 'asc') {
+      return aVal.localeCompare(bVal);
+    } else {
+      return bVal.localeCompare(aVal);
+    }
+  });
+  
+  rows.forEach(row => tbody.appendChild(row));
+}
+
+// =============== PAGINATION FUNCTIONS ===============
+// Initialize pagination on page load
+window.addEventListener('DOMContentLoaded', function() {
+  allRows = Array.from(document.querySelectorAll('.target-row'));
+  filteredRows = [...allRows];
+  updatePagination();
+
+  // Add target form — element lives in the modals block, must register after DOM ready
+  const addTargetForm = document.getElementById('addTargetForm');
+  if (addTargetForm) {
+    addTargetForm.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const data = {
+        first_name: document.getElementById('newFirstName').value,
+        last_name: document.getElementById('newLastName').value,
+        email: document.getElementById('newEmail').value
+      };
+      try {
+        const response = await fetch('/targets/add', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(data)
+        });
+        if (response.ok) {
+          toastSuccess('Target added successfully!');
+          setTimeout(() => location.reload(), 1000);
+        } else {
+          toastError('Failed to add target');
+        }
+      } catch(err) {
+        toastError('Error: ' + err.message);
+      }
+    });
+  }
+});
+
+function updatePagination() {
+  const totalRows = filteredRows.length;
+  const totalPages = Math.ceil(totalRows / rowsPerPage);
+  const start = (currentPage - 1) * rowsPerPage + 1;
+  const end = Math.min(currentPage * rowsPerPage, totalRows);
+  
+  document.getElementById('showingStart').textContent = totalRows > 0 ? start : 0;
+  document.getElementById('showingEnd').textContent = end;
+  document.getElementById('totalRows').textContent = totalRows;
+  document.getElementById('currentPage').textContent = currentPage;
+  document.getElementById('totalPages').textContent = totalPages || 1;
+  
+  document.getElementById('prevBtn').disabled = currentPage === 1;
+  document.getElementById('nextBtn').disabled = currentPage >= totalPages;
+  
+  displayPage();
+}
+
+function displayPage() {
+  const start = (currentPage - 1) * rowsPerPage;
+  const end = start + rowsPerPage;
+  
+  // Hide all rows first
+  allRows.forEach(row => row.style.display = 'none');
+  
+  // Show only filtered rows for current page
+  filteredRows.forEach((row, index) => {
+    if (index >= start && index < end) {
+      row.style.display = '';
+    }
+  });
+}
+
+function nextPage() {
+  const totalPages = Math.ceil(filteredRows.length / rowsPerPage);
+  if (currentPage < totalPages) {
+    currentPage++;
+    updatePagination();
+  }
+}
+
+function previousPage() {
+  if (currentPage > 1) {
+    currentPage--;
+    updatePagination();
+  }
+}
+
+// Enhanced filter function - search across all fields
+function filterTargets() {
+  const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+  const sbuFilter = document.getElementById('sbuFilter')?.value || '';
+  const campaignFilter = document.getElementById('campaignFilter').value;
+  
+  filteredRows = allRows.filter(row => {
+    const firstName = row.dataset.firstname.toLowerCase();
+    const lastName = row.dataset.lastname.toLowerCase();
+    const email = row.dataset.email.toLowerCase();
+    const sbu = row.dataset.sbu.toLowerCase();
+    const position = row.dataset.position.toLowerCase();
+    const campaign = row.dataset.campaign;
+    
+    const matchesSearch = firstName.includes(searchTerm) || 
+                         lastName.includes(searchTerm) || 
+                         email.includes(searchTerm) ||
+                         sbu.includes(searchTerm) ||
+                         position.includes(searchTerm) ||
+                         campaign.includes(searchTerm);
+    const matchesSbu = !sbuFilter || sbu === sbuFilter.toLowerCase();
+    const matchesCampaign = !campaignFilter || campaign === campaignFilter;
+    
+    return matchesSearch && matchesSbu && matchesCampaign;
+  });
+  
+  currentPage = 1;
+  updatePagination();
+}
+
+// ==================== SBU PASTE MODAL ====================
+let sbuPastePreviewData = [];
+let sbuPasteRemoveData = [];  // emails that will be removed (leavers)
+
+function showSbuPasteModal() {
+  document.getElementById('pasteTextarea').value = '';
+  document.getElementById('pastePreviewWrapper').classList.add('hidden');
+  sbuPastePreviewData = [];
+  sbuPasteRemoveData = [];
+  document.getElementById('sbuPasteModal').classList.remove('hidden');
+}
+
+function closeSbuPasteModal() {
+  document.getElementById('sbuPasteModal').classList.add('hidden');
+}
+
+function parsePasteLines() {
+  const raw = document.getElementById('pasteTextarea').value;
+  const domain = (document.getElementById('pasteDomain').value || 'example.com').trim();
+  const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const results = [];
+
+  for (const line of lines) {
+    // Support tab-separated OR multiple-spaces-separated
+    const parts = line.split(/\t|  +/).map(p => p.trim()).filter(Boolean);
+    if (parts.length < 2) continue;
+    const first = parts[0];
+    const last  = parts[1];
+    const pos   = parts[2] || '';
+    const email = `${first.toLowerCase()}.${last.toLowerCase()}@${domain}`;
+    results.push({ first_name: first, last_name: last, position: pos, email });
+  }
+  return results;
+}
+
+async function previewSbuPaste() {
+  sbuPastePreviewData = parsePasteLines();
+  if (sbuPastePreviewData.length === 0) {
+    toastWarning('No valid rows parsed. Expected: FirstName  LastName  Position');
+    return;
+  }
+
+  const sbu = document.getElementById('pasteSbuSelect').value;
+
+  // Fetch current DB targets to find existing + leavers
+  let existingEmails = new Set();
+  let sbuTargets = [];  // all targets currently in this SBU
+  try {
+    const resp = await fetch('/targets/list');
+    const list = await resp.json();
+    list.forEach(t => existingEmails.add(t.email.toLowerCase()));
+    if (sbu) sbuTargets = list.filter(t => (t.sbu || '') === sbu);
+  } catch(e) { /* ignore */ }
+
+  const pasteEmailSet = new Set(sbuPastePreviewData.map(t => t.email.toLowerCase()));
+
+  // Leavers: in SBU now but not in the paste
+  sbuPasteRemoveData = sbuTargets.filter(t => !pasteEmailSet.has(t.email.toLowerCase()));
+
+  const tbody = document.getElementById('pastePreviewBody');
+  const pasteRows = sbuPastePreviewData.map(t => {
+    const isUpdate = existingEmails.has(t.email.toLowerCase());
+    const badge = isUpdate
+      ? '<span class="px-2 py-0.5 rounded text-xs bg-yellow-100 dark:bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 border border-yellow-300 dark:border-yellow-500/30">Update</span>'
+      : '<span class="px-2 py-0.5 rounded text-xs bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-500/30">New</span>';
+    return `<tr class="border-b border-slate-100 dark:border-white/5">
+      <td class="px-3 py-2 font-medium">${t.first_name} ${t.last_name}</td>
+      <td class="px-3 py-2 text-blue-600 dark:text-blue-400">${t.email}</td>
+      <td class="px-3 py-2 text-slate-500">${t.position || '-'}</td>
+      <td class="px-3 py-2 text-center">${badge}</td>
+    </tr>`;
+  });
+
+  const removeRows = sbuPasteRemoveData.map(t => {
+    return `<tr class="border-b border-red-100 dark:border-red-900/20 bg-red-50/40 dark:bg-red-900/10">
+      <td class="px-3 py-2 font-medium text-red-600 dark:text-red-400 line-through">${t.first_name || ''} ${t.last_name || ''}</td>
+      <td class="px-3 py-2 text-red-500 dark:text-red-400 line-through">${t.email}</td>
+      <td class="px-3 py-2 text-slate-400">${t.position || '-'}</td>
+      <td class="px-3 py-2 text-center"><span class="px-2 py-0.5 rounded text-xs bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400 border border-red-300 dark:border-red-500/30">Remove</span></td>
+    </tr>`;
+  });
+
+  tbody.innerHTML = pasteRows.join('') + removeRows.join('');
+
+  const total = sbuPastePreviewData.length + sbuPasteRemoveData.length;
+  document.getElementById('pastePreviewCount').textContent = total;
+  document.getElementById('pastePreviewWrapper').classList.remove('hidden');
+  if (sbuPasteRemoveData.length > 0) {
+    document.getElementById('pasteLegendRemove').classList.remove('hidden');
+  } else {
+    document.getElementById('pasteLegendRemove').classList.add('hidden');
+  }
+}
+
+async function processSbuPaste() {
+  if (sbuPastePreviewData.length === 0) {
+    toastWarning('Preview the data first before importing.');
+    return;
+  }
+  const sbu    = document.getElementById('pasteSbuSelect').value;
+  const domain = (document.getElementById('pasteDomain').value || 'example.com').trim();
+
+  if (!sbu) { toastWarning('Please select an SBU.'); return; }
+
+  try {
+    const response = await fetch('/targets/sbu_paste', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ sbu, domain, targets: sbuPastePreviewData, remove_departed: true })
+    });
+    const result = await response.json();
+    if (result.success) {
+      let msg = `${result.inserted} added, ${result.updated} updated`;
+      if (result.removed > 0) msg += `, ${result.removed} removed (left)`;
+      msg += ` — SBU: ${sbu}`;
+      toastSuccess(msg);
+      closeSbuPasteModal();
+      setTimeout(() => location.reload(), 1200);
+    } else {
+      toastError('Import failed: ' + (result.error || 'Unknown error'));
+    }
+  } catch(err) {
+    toastError('Error: ' + err.message);
+  }
+}
+// ==========================================================
+
+// Tag Past Targets Modal
+function showTagPastTargetsModal() {
+  document.getElementById('tagPastTargetsModal').classList.remove('hidden');
+}
+
+function closeTagPastTargetsModal() {
+  document.getElementById('tagPastTargetsModal').classList.add('hidden');
+  document.getElementById('pastTargetsFile').value = '';
+}
+
+async function processPastTargets() {
+  const fileInput = document.getElementById('pastTargetsFile');
+  const file = fileInput.files[0];
+  
+  if (!file) {
+    toastWarning('Please select a TXT file with email addresses');
+    return;
+  }
+  
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    const content = e.target.result;
+    // Parse emails from text file (one per line)
+    const emails = content.split(/[\r\n]+/)
+      .map(line => line.trim().toLowerCase())
+      .filter(line => line && line.includes('@'));
+    
+    if (emails.length === 0) {
+      toastWarning('No valid email addresses found in file. Expected format: one email per line.');
+      return;
+    }
+    
+    const confirmed = await showConfirm(`Found ${emails.length} email(s) in file.\n\nThis will tag all matching targets as past campaign participants.\nContinue?`, {
+      title: 'Tag Past Targets',
+      okText: 'Tag Targets',
+      cancelText: 'Cancel',
+      okClass: 'primary'
+    });
+    if (!confirmed) return;
+    
+    try {
+      const response = await fetch('/targets/tag_past_targets', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({emails})
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        toastSuccess(`Successfully tagged ${result.tagged} target(s) from ${emails.length} emails`);
+        closeTagPastTargetsModal();
+        setTimeout(() => location.reload(), 1000);
+      } else {
+        const error = await response.json();
+        toastError('Failed to tag targets: ' + (error.error || 'Unknown error'));
+      }
+    } catch(err) {
+      toastError('Error: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+</script>
+{% endblock %}
+
+{% block modals %}
+<!-- Import Modal -->
+<div id="importModal" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in">
+  <div class="glass-card rounded-xl border border-slate-200 dark:border-white/10 p-6 max-w-2xl w-full mx-4 shadow-2xl bg-white dark:bg-slate-900">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-xl font-bold text-slate-900 dark:text-slate-100">Import Targets</h3>
+      <button onclick="closeImportModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+        <i class="fas fa-times text-xl"></i>
+      </button>
+    </div>
+    <div class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+          Upload CSV or XLSX File
+        </label>
+        <p class="text-xs text-slate-500 mb-3">
+          Expected format: Column 1 = FirstName, Column 2 = LastName, Column 3 = Position (optional)
+        </p>
+        <input type="file" id="importFile" accept=".csv,.xlsx,.xls" class="block w-full text-sm text-slate-500 dark:text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-500 file:cursor-pointer cursor-pointer">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+          SBU / Business Unit <span class="text-red-500 dark:text-red-400">*</span>
+        </label>
+        <input type="text" id="sbuName" placeholder="e.g., Finance, IT, HR, Marketing" class="w-full glass-panel border border-slate-300 dark:border-white/10 rounded-lg px-4 py-2 text-slate-900 dark:text-slate-200 focus:outline-none focus:border-primary input-focus bg-white dark:bg-transparent" required>
+        <p class="text-xs text-slate-500 mt-1">Required: Assign all imported targets to this SBU</p>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+          Email Domain
+        </label>
+        <input type="text" id="emailDomain" value="example.com" class="w-full glass-panel border border-slate-300 dark:border-white/10 rounded-lg px-4 py-2 text-slate-900 dark:text-slate-200 focus:outline-none focus:border-primary input-focus bg-white dark:bg-transparent">
+        <p class="text-xs text-slate-500 mt-1">Generates: firstname.lastname@example.com</p>
+      </div>
+      <div class="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-white/10">
+        <button onclick="closeImportModal()" class="px-4 py-2 glass-panel hover:bg-slate-100 dark:hover:bg-white/10 text-slate-700 dark:text-slate-200 rounded-lg transition-colors border border-slate-200 dark:border-white/10">
+          Cancel
+        </button>
+        <button onclick="processImport()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg shadow-lg shadow-blue-900/20 transition-all btn-hover">
+          <i class="fas fa-upload mr-2"></i> Import
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Target Modal -->
+<div id="addTargetModal" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in">
+  <div class="glass-card rounded-xl border border-slate-200 dark:border-white/10 p-6 max-w-md w-full mx-4 shadow-2xl bg-white dark:bg-slate-900">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-xl font-bold text-slate-900 dark:text-slate-100">Add Target</h3>
+      <button onclick="closeAddTargetModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+        <i class="fas fa-times text-xl"></i>
+      </button>
+    </div>
+    <form id="addTargetForm" class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">First Name</label>
+        <input type="text" id="newFirstName" class="w-full glass-panel border border-slate-300 dark:border-white/10 rounded-lg px-4 py-2 text-slate-900 dark:text-slate-200 focus:outline-none focus:border-primary input-focus bg-white dark:bg-transparent" required>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Last Name</label>
+        <input type="text" id="newLastName" class="w-full glass-panel border border-slate-300 dark:border-white/10 rounded-lg px-4 py-2 text-slate-900 dark:text-slate-200 focus:outline-none focus:border-primary input-focus bg-white dark:bg-transparent" required>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Email</label>
+        <input type="email" id="newEmail" class="w-full glass-panel border border-slate-300 dark:border-white/10 rounded-lg px-4 py-2 text-slate-900 dark:text-slate-200 focus:outline-none focus:border-primary input-focus bg-white dark:bg-transparent" required>
+      </div>
+      <div class="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-white/10">
+        <button type="button" onclick="closeAddTargetModal()" class="px-4 py-2 glass-panel hover:bg-slate-100 dark:hover:bg-white/10 text-slate-700 dark:text-slate-200 rounded-lg transition-colors border border-slate-200 dark:border-white/10">
+          Cancel
+        </button>
+        <button type="submit" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg shadow-lg shadow-emerald-900/20 transition-all btn-hover">
+          <i class="fas fa-plus mr-2"></i> Add Target
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- SBU Paste Import Modal -->
+<div id="sbuPasteModal" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in">
+  <div class="glass-card rounded-xl border border-slate-200 dark:border-white/10 p-6 max-w-3xl w-full mx-4 shadow-2xl bg-white dark:bg-slate-900 flex flex-col" style="max-height:90vh">
+    <div class="flex justify-between items-center mb-4 shrink-0">
+      <h3 class="text-xl font-bold text-slate-900 dark:text-slate-100"><i class="fas fa-paste mr-2 text-violet-500"></i> Paste Targets by SBU</h3>
+      <button onclick="closeSbuPasteModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"><i class="fas fa-times text-xl"></i></button>
+    </div>
+
+    <div class="space-y-4 shrink-0">
+      <!-- Row 1: SBU + Domain -->
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">SBU <span class="text-red-500">*</span></label>
+          <select id="pasteSbuSelect" class="w-full glass-panel border border-slate-300 dark:border-white/10 rounded-lg px-4 py-2 text-slate-900 dark:text-slate-200 focus:outline-none focus:border-primary bg-white dark:bg-transparent text-sm">
+            {% for sbu in default_sbus %}
+          <option value="{{ sbu }}">{{ sbu }}</option>
+          {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Email Domain</label>
+          <input type="text" id="pasteDomain" value="example.com" class="w-full glass-panel border border-slate-300 dark:border-white/10 rounded-lg px-4 py-2 text-slate-900 dark:text-slate-200 focus:outline-none focus:border-primary bg-white dark:bg-transparent text-sm">
+        </div>
+      </div>
+
+      <!-- Paste area -->
+      <div>
+        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Paste Names</label>
+        <p class="text-xs text-slate-400 dark:text-slate-500 mb-2">Copy directly from Excel/Word — one person per line, columns: <strong>FirstName&nbsp;&nbsp;LastName&nbsp;&nbsp;Position</strong> (tab or 2+ spaces)</p>
+        <textarea id="pasteTextarea" rows="7" placeholder="Ruzive&#9;Mukau&#9;Branch Manager&#10;Priscilla&#9;Dendera&#9;Manager's Assistant&#10;Clever&#9;Manangazira&#9;Branch Operations Manager" class="w-full glass-panel border border-slate-300 dark:border-white/10 rounded-lg px-4 py-2 text-slate-900 dark:text-slate-200 focus:outline-none focus:border-primary bg-white dark:bg-transparent text-sm font-mono" oninput="document.getElementById('pastePreviewWrapper').classList.add('hidden')"></textarea>
+      </div>
+
+      <!-- Preview button -->
+      <div class="flex gap-3">
+        <button onclick="previewSbuPaste()" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm transition-colors">
+          <i class="fas fa-eye mr-2"></i> Preview
+        </button>
+        <span class="text-xs text-slate-400 dark:text-slate-500 self-center">Check before importing — existing targets are updated, history is preserved.</span>
+      </div>
+    </div>
+
+    <!-- Preview table -->
+    <div id="pastePreviewWrapper" class="hidden mt-4 flex-1 overflow-y-auto min-h-0">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-sm font-medium text-slate-700 dark:text-slate-300">Preview (<span id="pastePreviewCount">0</span> rows)</span>
+        <span class="text-xs text-slate-400">Green = new &nbsp;|&nbsp; Yellow = update &nbsp;|&nbsp; <span id="pasteLegendRemove" class="hidden text-red-500">Red = will be removed (left)</span></span>
+      </div>
+      <div class="rounded-lg border border-slate-200 dark:border-white/10 overflow-hidden">
+        <table class="w-full text-sm text-left">
+          <thead class="bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 text-xs uppercase">
+            <tr>
+              <th class="px-3 py-2">Name</th>
+              <th class="px-3 py-2">Generated Email</th>
+              <th class="px-3 py-2">Position</th>
+              <th class="px-3 py-2 text-center">Action</th>
+            </tr>
+          </thead>
+          <tbody id="pastePreviewBody" class="divide-y divide-slate-100 dark:divide-white/5"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-white/10 mt-4 shrink-0">
+      <button onclick="closeSbuPasteModal()" class="px-4 py-2 glass-panel hover:bg-slate-100 dark:hover:bg-white/10 text-slate-700 dark:text-slate-200 rounded-lg transition-colors border border-slate-200 dark:border-white/10">
+        Cancel
+      </button>
+      <button onclick="processSbuPaste()" class="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-lg shadow-lg shadow-violet-900/20 transition-all btn-hover">
+        <i class="fas fa-file-import mr-2"></i> Import to SBU
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Tag Past Targets Modal -->
+<div id="tagPastTargetsModal" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in">
+  <div class="glass-card rounded-xl border border-slate-200 dark:border-white/10 p-6 max-w-2xl w-full mx-4 shadow-2xl bg-white dark:bg-slate-900">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-xl font-bold text-slate-900 dark:text-slate-100">Tag Past Campaign Targets</h3>
+      <button onclick="closeTagPastTargetsModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+        <i class="fas fa-times text-xl"></i>
+      </button>
+    </div>
+    <div class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+          Upload Email List (TXT file)
+        </label>
+        <p class="text-xs text-slate-500 mb-3">
+          Upload a text file with email addresses (one per line) from past campaigns
+        </p>
+        <input type="file" id="pastTargetsFile" accept=".txt" class="block w-full text-sm text-slate-500 dark:text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-yellow-600 file:text-white hover:file:bg-yellow-500 file:cursor-pointer cursor-pointer">
+      </div>
+      <div class="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-white/10">
+        <button onclick="closeTagPastTargetsModal()" class="px-4 py-2 glass-panel hover:bg-slate-100 dark:hover:bg-white/10 text-slate-700 dark:text-slate-200 rounded-lg transition-colors border border-slate-200 dark:border-white/10">
+          Cancel
+        </button>
+        <button onclick="processPastTargets()" class="px-4 py-2 bg-yellow-600 hover:bg-yellow-500 text-white rounded-lg shadow-lg shadow-yellow-900/20 transition-all btn-hover">
+          <i class="fas fa-tag mr-2"></i> Tag Targets
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

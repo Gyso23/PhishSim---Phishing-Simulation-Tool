@@ -1,0 +1,815 @@
+﻿{% extends "base.html" %}
+
+{% block title %}Design Template - Step 2{% endblock %}
+
+{% block container_class %}h-full w-full p-0{% endblock %}
+
+{% block content %}
+<!-- Monaco Editor CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
+
+<div class="h-[calc(100vh-64px)] flex flex-col bg-white dark:bg-slate-900 overflow-hidden">
+  <form action="/campaigns/create_step2" method="POST" id="templateForm" class="flex flex-col h-full">
+    <!-- Top Bar -->
+    <div class="h-14 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between px-4 shrink-0 z-20">
+      <div class="flex items-center gap-4">
+        <a class="flex items-center text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-sm font-medium" href="/campaigns/create">
+          <i class="fas fa-check-circle mr-2 text-emerald-500"></i> Step 1
+        </a>
+        <i class="fas fa-chevron-right text-slate-400 dark:text-slate-600 text-xs"></i>
+        <span class="flex items-center text-blue-600 dark:text-blue-400 text-sm font-bold">
+          <i class="fas fa-circle mr-2 text-xs"></i> Step 2: Template
+        </span>
+        <i class="fas fa-chevron-right text-slate-400 dark:text-slate-600 text-xs"></i>
+        <span class="flex items-center text-slate-500 dark:text-slate-500 text-sm font-medium">
+          <i class="far fa-circle mr-2 text-xs"></i> Step 3
+        </span>
+      </div>
+      <div class="flex items-center gap-3">
+        <button type="button" onclick="showSendTestModal()" class="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-sm font-medium">
+          <i class="fas fa-paper-plane mr-2"></i> Send Test
+        </button>
+        <a href="/campaigns/create" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-slate-200 rounded-lg text-sm font-medium">
+          <i class="fas fa-arrow-left mr-2"></i> Back
+        </a>
+        <button type="submit" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-medium shadow-lg">
+          Next: Targets <i class="fas fa-arrow-right ml-2"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="flex-1 flex min-h-0">
+      <!-- Left Sidebar -->
+      <div class="w-80 bg-slate-50 dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 flex flex-col shrink-0 overflow-y-auto">
+        <div class="p-4 space-y-5">
+          <!-- Template Selection -->
+          <div class="space-y-2">
+            <label class="text-slate-700 dark:text-slate-300 text-sm font-medium flex items-center justify-between">
+              Select Template
+              <button type="button" onclick="loadDefaultTemplate()" class="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300">
+                <i class="fas fa-redo mr-1"></i> Default
+              </button>
+            </label>
+            <select id="templateSelect" name="template_id" onchange="loadTemplate()" class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-blue-500">
+              <option value="">-- Select Template --</option>
+              <option value="default">Microsoft Security (Built-in)</option>
+              {% for template in templates %}
+              <option value="{{ template.id }}" {% if campaign and campaign.template_id == template.id %}selected{% endif %}>{{ template.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <!-- Subject Line -->
+          <div class="space-y-2">
+            <label class="text-slate-700 dark:text-slate-300 text-sm font-medium">Subject Line</label>
+            <input type="text" name="subject" id="subjectInput" value="{{ campaign.subject if campaign else '' }}" placeholder="Enter email subject..." class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-blue-500">
+          </div>
+
+          <!-- SMTP Profile -->
+          <div class="space-y-2">
+            <label class="text-slate-700 dark:text-slate-300 text-sm font-medium flex items-center justify-between">
+              SMTP Profile
+              <button type="button" onclick="toggleSmtpForm()" class="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300">
+                <i class="fas fa-plus mr-1"></i> Create New
+              </button>
+            </label>
+            <select id="smtpProfileSelect" name="smtp_profile_id" class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-blue-500">
+              <option value="">-- Use Default --</option>
+              {% for profile in smtp_profiles %}
+              <option value="{{ profile.id }}" {% if profile.is_default %}selected{% endif %}>{{ profile.name }}{% if profile.is_default %} (default){% endif %}</option>
+              {% endfor %}
+            </select>
+            
+            <!-- Inline SMTP Form -->
+            <div id="smtpCreateForm" class="hidden mt-3 p-3 bg-white dark:bg-slate-900 rounded-lg border border-slate-300 dark:border-slate-600 space-y-3">
+              <div><label class="text-slate-500 dark:text-slate-400 text-xs">Profile Name *</label><input type="text" id="newSmtpName" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-slate-900 dark:text-slate-100 text-sm mt-1"></div>
+              <div class="grid grid-cols-2 gap-2">
+                <div><label class="text-slate-500 dark:text-slate-400 text-xs">SMTP Server *</label><input type="text" id="newSmtpHost" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-slate-900 dark:text-slate-100 text-sm mt-1"></div>
+                <div><label class="text-slate-500 dark:text-slate-400 text-xs">Port</label><input type="number" id="newSmtpPort" value="25" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-slate-900 dark:text-slate-100 text-sm mt-1"></div>
+              </div>
+              <div><label class="text-slate-500 dark:text-slate-400 text-xs">Sender Email *</label><input type="email" id="newSmtpSenderEmail" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-slate-900 dark:text-slate-100 text-sm mt-1"></div>
+              <div><label class="text-slate-500 dark:text-slate-400 text-xs">Sender Name</label><input type="text" id="newSmtpSenderName" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-slate-900 dark:text-slate-100 text-sm mt-1"></div>
+              <div class="grid grid-cols-2 gap-2">
+                <div><label class="text-slate-500 dark:text-slate-400 text-xs">Username (optional)</label><input type="text" id="newSmtpUsername" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-slate-900 dark:text-slate-100 text-sm mt-1"></div>
+                <div><label class="text-slate-500 dark:text-slate-400 text-xs">Password (optional)</label><input type="password" id="newSmtpPassword" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-slate-900 dark:text-slate-100 text-sm mt-1"></div>
+              </div>
+              <div class="flex items-center gap-4">
+                <div class="flex items-center gap-2"><input type="checkbox" id="newSmtpTls" class="rounded"><label for="newSmtpTls" class="text-slate-500 dark:text-slate-400 text-xs">Use TLS</label></div>
+                <div class="flex items-center gap-2"><input type="checkbox" id="newSmtpSsl" class="rounded"><label for="newSmtpSsl" class="text-slate-500 dark:text-slate-400 text-xs">Use SSL</label></div>
+              </div>
+              <div class="flex gap-2">
+                <button type="button" onclick="saveNewSmtpProfile()" class="flex-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-sm">Save</button>
+                <button type="button" onclick="toggleSmtpForm()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-slate-200 rounded text-sm">Cancel</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Landing Page -->
+          <div class="space-y-2">
+            <label class="text-slate-700 dark:text-slate-300 text-sm font-medium">Landing Page</label>
+            <select name="landing_page_id" id="landingPageSelect" class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-blue-500">
+              <option value="">-- None --</option>
+              {% for lp in landing_pages %}
+              <option value="{{ lp.id }}" {% if campaign and campaign.landing_page_id == lp.id %}selected{% endif %}>{{ lp.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <!-- Variables -->
+          <div class="space-y-2">
+            <label class="text-slate-700 dark:text-slate-300 text-sm font-medium">Insert Variables</label>
+            <div class="flex flex-wrap gap-2">
+              <button type="button" onclick="insertVariable('FirstName')" class="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 dark:bg-blue-600/20 dark:hover:bg-blue-600/40 dark:text-blue-400 dark:border-blue-600/30 rounded text-xs">&#123;&#123;FirstName&#125;&#125;</button>
+              <button type="button" onclick="insertVariable('LastName')" class="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 dark:bg-blue-600/20 dark:hover:bg-blue-600/40 dark:text-blue-400 dark:border-blue-600/30 rounded text-xs">&#123;&#123;LastName&#125;&#125;</button>
+              <button type="button" onclick="insertVariable('Email')" class="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 dark:bg-blue-600/20 dark:hover:bg-blue-600/40 dark:text-blue-400 dark:border-blue-600/30 rounded text-xs">&#123;&#123;Email&#125;&#125;</button>
+              <button type="button" onclick="insertVariable('link')" class="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border border-emerald-200 dark:bg-emerald-600/20 dark:hover:bg-emerald-600/40 dark:text-emerald-400 dark:border-emerald-600/30 rounded text-xs">&#123;&#123;link&#125;&#125;</button>
+              <button type="button" onclick="insertVariable('tracking_pixel')" class="px-2 py-1 bg-purple-50 hover:bg-purple-100 text-purple-600 border border-purple-200 dark:bg-purple-600/20 dark:hover:bg-purple-600/40 dark:text-purple-400 dark:border-purple-600/30 rounded text-xs">&#123;&#123;tracking_pixel&#125;&#125;</button>
+            </div>
+          </div>
+
+          <!-- Formatting -->
+          <div class="space-y-2">
+            <label class="text-slate-700 dark:text-slate-300 text-sm font-medium">Formatting</label>
+            <div class="grid grid-cols-6 gap-1">
+              <button type="button" onclick="insertTag('b')" class="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-slate-200 rounded text-sm" title="Bold"><i class="fas fa-bold"></i></button>
+              <button type="button" onclick="insertTag('i')" class="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-slate-200 rounded text-sm" title="Italic"><i class="fas fa-italic"></i></button>
+              <button type="button" onclick="insertTag('u')" class="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-slate-200 rounded text-sm" title="Underline"><i class="fas fa-underline"></i></button>
+              <button type="button" onclick="insertLink()" class="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-slate-200 rounded text-sm" title="Link"><i class="fas fa-link"></i></button>
+              <button type="button" onclick="insertImage()" class="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-slate-200 rounded text-sm" title="Image"><i class="fas fa-image"></i></button>
+              <button type="button" onclick="insertTable()" class="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-slate-200 rounded text-sm" title="Table"><i class="fas fa-table"></i></button>
+            </div>
+          </div>
+
+          <!-- ── CID Images ──────────────────────────── -->
+          <div id="cidPanel" class="space-y-2 border border-blue-200 dark:border-blue-800/50 rounded-lg p-3 bg-blue-50/50 dark:bg-blue-900/10">
+            <label class="text-blue-700 dark:text-blue-300 text-xs font-semibold flex items-center gap-1">
+              <i class="fas fa-paperclip"></i> CID Inline Images
+              <span id="cidNeedTemplate" class="ml-auto text-slate-400 text-xs font-normal italic">Select a template first</span>
+            </label>
+            <div id="cidImageList" class="space-y-1 text-xs"></div>
+            <div id="cidNoImages" class="text-slate-400 dark:text-slate-500 text-xs italic">No CID images yet.</div>
+            <label id="cidUploadBtn" class="hidden cursor-pointer px-2 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs font-medium">
+              <i class="fas fa-upload mr-1"></i> Upload Image
+              <input type="file" class="hidden" accept="image/*" onchange="uploadCidImageStep2(this)">
+            </label>
+          </div>
+
+          <!-- ── File Attachments ────────────────────── -->
+          <div id="attachPanel" class="space-y-2 border border-violet-200 dark:border-violet-800/50 rounded-lg p-3 bg-violet-50/50 dark:bg-violet-900/10">
+            <label class="text-violet-700 dark:text-violet-300 text-xs font-semibold flex items-center gap-1">
+              <i class="fas fa-file-alt"></i> File Attachments
+              <span id="attachNeedTemplate" class="ml-auto text-slate-400 text-xs font-normal italic">Select a template first</span>
+            </label>
+            <div id="attachmentList2" class="space-y-1 text-xs"></div>
+            <div id="attachNoFiles" class="text-slate-400 dark:text-slate-500 text-xs italic">No attachments yet.</div>
+            <label id="attachUploadBtn" class="hidden cursor-pointer px-2 py-1 bg-violet-600 hover:bg-violet-500 text-white rounded text-xs font-medium">
+              <i class="fas fa-upload mr-1"></i> Add Attachment
+              <input type="file" class="hidden" onchange="uploadAttachmentStep2(this)">
+            </label>
+          </div>
+
+          <!-- ── Hosted Images ───────────────────────── -->
+          <div class="space-y-2 border border-emerald-200 dark:border-emerald-800/50 rounded-lg p-3 bg-emerald-50/50 dark:bg-emerald-900/10">
+            <label class="text-emerald-700 dark:text-emerald-300 text-xs font-semibold flex items-center gap-1">
+              <i class="fas fa-images"></i> Hosted Images (URL)
+            </label>
+            <div id="hostedImageList2" class="space-y-1 text-xs"></div>
+            <div id="hostedNoImages2" class="text-slate-400 dark:text-slate-500 text-xs italic">No hosted images yet.</div>
+            <label class="cursor-pointer px-2 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-medium">
+              <i class="fas fa-upload mr-1"></i> Upload Hosted Image
+              <input type="file" class="hidden" accept="image/*" onchange="uploadHostedImageStep2(this)">
+            </label>
+          </div>
+
+          <!-- ── Open Tracking ──────────────────────── -->
+          <div class="space-y-2 border border-amber-200 dark:border-amber-800/50 rounded-lg p-3 bg-amber-50/50 dark:bg-amber-900/10">
+            <label class="text-amber-700 dark:text-amber-300 text-xs font-semibold flex items-center gap-1">
+              <i class="fas fa-eye"></i> Open Tracking
+            </label>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Insert <code class="bg-slate-200 dark:bg-slate-700 px-1 rounded">&#123;&#123;tracking_pixel&#125;&#125;</code> in your HTML to track email opens.</p>
+            <button type="button" onclick="insertVariable('tracking_pixel')" class="px-2 py-1 bg-amber-600 hover:bg-amber-500 text-white rounded text-xs font-medium w-full">
+              <i class="fas fa-plus mr-1"></i> Insert Tracking Pixel
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Monaco Editor -->
+      <div class="flex-1 flex flex-col min-w-0 border-r border-slate-200 dark:border-slate-700">
+        <div class="h-10 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center px-4 shrink-0">
+          <span class="text-slate-700 dark:text-slate-300 text-sm font-medium"><i class="fas fa-code mr-2"></i> HTML Editor</span>
+        </div>
+        <div id="monacoContainer" class="flex-1 min-h-0"></div>
+        <input type="hidden" name="template_html" id="templateHtmlInput">
+      </div>
+
+      <!-- Preview -->
+      <div class="w-[40%] flex flex-col min-w-0 bg-slate-50 dark:bg-slate-800">
+        <div class="h-10 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between px-4 shrink-0">
+          <div class="flex items-center gap-1">
+            <button type="button" onclick="setPreviewContent('email')" id="emailPreviewBtn" class="px-2 py-1 bg-blue-600 text-white rounded text-xs flex items-center gap-1"><i class="fas fa-envelope"></i> <span class="hidden sm:inline">Email</span></button>
+            <button type="button" onclick="setPreviewContent('landing')" id="landingPreviewBtn" class="px-2 py-1 bg-slate-200 text-slate-500 dark:bg-slate-700 dark:text-slate-300 rounded text-xs flex items-center gap-1"><i class="fas fa-globe"></i> <span class="hidden sm:inline">Landing</span></button>
+          </div>
+          <div class="flex gap-2">
+            <button type="button" onclick="setPreviewMode('desktop')" id="desktopBtn" class="px-2 py-1 bg-blue-600 text-white rounded text-xs"><i class="fas fa-desktop"></i></button>
+            <button type="button" onclick="setPreviewMode('mobile')" id="mobileBtn" class="px-2 py-1 bg-slate-200 text-slate-500 dark:bg-slate-700 dark:text-slate-300 rounded text-xs"><i class="fas fa-mobile-alt"></i></button>
+          </div>
+        </div>
+        <div class="flex-1 p-4 overflow-auto bg-slate-200 dark:bg-slate-900">
+          <div id="previewContainer" class="mx-auto bg-white rounded-lg shadow-xl overflow-hidden" style="width: 100%;">
+            <iframe id="previewFrame" class="w-full h-full border-0" style="min-height: 600px;"></iframe>
+          </div>
+        </div>
+      </div>
+    </div>
+  </form>
+</div>
+
+
+
+<script>
+{% raw %}
+let monacoEditor = null;
+const defaultTemplate = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Alert</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5; }
+        .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .header { background: #0078d4; color: white; padding: 20px; text-align: center; }
+        .content { padding: 30px; }
+        .alert-box { background: #fff4ce; border-left: 4px solid #ffb900; padding: 15px; margin: 20px 0; }
+        .btn { display: inline-block; background: #0078d4; color: white; padding: 12px 30px; text-decoration: none; border-radius: 4px; margin: 20px 0; }
+        .footer { background: #f5f5f5; padding: 20px; text-align: center; font-size: 12px; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header"><h1>Microsoft Security</h1></div>
+        <div class="content">
+            <p>Hello {{FirstName}},</p>
+            <div class="alert-box"><strong>Action Required:</strong> You have messages in quarantine.</div>
+            <p>Please review them at your earliest convenience.</p>
+            <p style="text-align: center;"><a href="{{link}}" class="btn">Review Messages</a></p>
+            <p>Best regards,<br>Microsoft Security Team</p>
+        </div>
+        <div class="footer"><p>This is an automated security notification.</p></div>
+    </div>
+    {{tracking_pixel}}
+</body>
+</html>`;
+{% endraw %}
+
+require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' } });
+require(['vs/editor/editor.main'], function() {
+    let initialContent = defaultTemplate;
+    {% if campaign and campaign.template_html %}
+    initialContent = {{ campaign.template_html|tojson|safe }};
+    {% endif %}
+    
+    monacoEditor = monaco.editor.create(document.getElementById('monacoContainer'), {
+        value: initialContent,
+        language: 'html',
+        theme: 'vs-dark',
+        automaticLayout: true,
+        minimap: { enabled: false },
+        wordWrap: 'on',
+        fontSize: 13,
+        lineNumbers: 'on',
+        scrollBeyondLastLine: false
+    });
+    
+    monacoEditor.onDidChangeModelContent(() => { updatePreview(); syncToHiddenInput(); });
+    updatePreview();
+    syncToHiddenInput();
+});
+
+function syncToHiddenInput() { if (monacoEditor) document.getElementById('templateHtmlInput').value = monacoEditor.getValue(); }
+
+// Map of cid → preview URL, populated when CID images are loaded
+var _cidPreviewMap = {};
+
+var _previewDecorations = [];
+function updatePreview() {
+    if (!monacoEditor) return;
+    var content = monacoEditor.getValue();
+
+    // Substitute template variables for preview
+    content = content
+        .replace(/\{\{\s*FirstName\s*\}\}/gi, 'John')
+        .replace(/\{\{\s*LastName\s*\}\}/gi, 'Doe')
+        .replace(/\{\{\s*Email\s*\}\}/gi, 'john.doe@example.com')
+        .replace(/\{\{\s*link\s*\}\}/gi, '#preview')
+        .replace(/\{\{\s*phishing_link\s*\}\}/gi, '#preview')
+        .replace(/\{\{\s*tracking_pixel\s*\}\}/gi, '');
+
+    // Substitute cid: images with their actual preview URLs
+    content = content.replace(/src="cid:([^"]+)"/gi, function(match, cid) {
+        var decoded = cid.trim();
+        if (_cidPreviewMap[decoded]) return 'src="' + _cidPreviewMap[decoded] + '"';
+        return match;
+    });
+
+    var frame = document.getElementById('previewFrame');
+    var doc = frame.contentDocument || frame.contentWindow.document;
+    doc.open(); doc.write(content); doc.close();
+
+    // Click-to-highlight: inject listener after DOM settles
+    setTimeout(function() {
+        try {
+            var fdoc = frame.contentDocument || frame.contentWindow.document;
+            if (!fdoc || !fdoc.body) return;
+
+            // Inject crosshair cursor + hover outline into iframe
+            var style = fdoc.createElement('style');
+            style.textContent = 'body{cursor:crosshair!important}*:hover{outline:2px solid rgba(59,130,246,0.6)!important;outline-offset:-1px!important}';
+            fdoc.head.appendChild(style);
+
+            fdoc.body.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!monacoEditor) return;
+
+                var el = e.target;
+                var tag = el.tagName ? el.tagName.toLowerCase() : '';
+                if (!tag || tag === 'html' || tag === 'body') return;
+
+                var model = monacoEditor.getModel();
+                var fullText = model.getValue();
+                var found = -1;
+
+                // Strategy 1: class attribute
+                if (el.className && typeof el.className === 'string' && el.className.trim()) {
+                    var firstClass = el.className.trim().split(/\s+/)[0];
+                    found = fullText.indexOf('<' + tag + ' class="' + firstClass);
+                    if (found === -1) found = fullText.indexOf('<' + tag + ' class=\'' + firstClass);
+                }
+                // Strategy 2: id attribute
+                if (found === -1 && el.id) {
+                    found = fullText.indexOf('id="' + el.id + '"');
+                    if (found === -1) found = fullText.indexOf("id='" + el.id + "'");
+                }
+                // Strategy 3: unique text content
+                if (found === -1) {
+                    var txt = (el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 50);
+                    if (txt.length > 5) found = fullText.indexOf(txt);
+                }
+                // Strategy 4: tag name fallback
+                if (found === -1) found = fullText.indexOf('<' + tag);
+
+                if (found === -1) return;
+
+                var pos = model.getPositionAt(found);
+                var lineMax = model.getLineMaxColumn(pos.lineNumber);
+
+                _previewDecorations = monacoEditor.deltaDecorations(_previewDecorations, [{
+                    range: new monaco.Range(pos.lineNumber, 1, pos.lineNumber, lineMax),
+                    options: {
+                        isWholeLine: true,
+                        className: 'preview-click-highlight',
+                        overviewRuler: { color: '#3b82f6', position: monaco.editor.OverviewRulerLane.Full }
+                    }
+                }]);
+                monacoEditor.revealLineInCenter(pos.lineNumber);
+                monacoEditor.setPosition({ lineNumber: pos.lineNumber, column: 1 });
+                monacoEditor.focus();
+
+                setTimeout(function() {
+                    _previewDecorations = monacoEditor.deltaDecorations(_previewDecorations, []);
+                }, 2500);
+            }, true); // capture phase
+        } catch(err) { /* sandboxed iframe */ }
+    }, 50);
+}
+
+var _previewContentMode = 'email'; // 'email' | 'landing'
+
+function setPreviewContent(mode) {
+    _previewContentMode = mode;
+    const emailBtn = document.getElementById('emailPreviewBtn');
+    const landingBtn = document.getElementById('landingPreviewBtn');
+    if (mode === 'landing') {
+        emailBtn.className = 'px-2 py-1 bg-slate-200 text-slate-500 dark:bg-slate-700 dark:text-slate-300 rounded text-xs flex items-center gap-1';
+        landingBtn.className = 'px-2 py-1 bg-blue-600 text-white rounded text-xs flex items-center gap-1';
+        loadLandingPagePreview();
+    } else {
+        landingBtn.className = 'px-2 py-1 bg-slate-200 text-slate-500 dark:bg-slate-700 dark:text-slate-300 rounded text-xs flex items-center gap-1';
+        emailBtn.className = 'px-2 py-1 bg-blue-600 text-white rounded text-xs flex items-center gap-1';
+        updatePreview();
+    }
+}
+
+function loadLandingPagePreview() {
+    const lpSelect = document.getElementById('landingPageSelect');
+    const lpId = lpSelect ? lpSelect.value : '';
+    if (!lpId) {
+        const frame = document.getElementById('previewFrame');
+        const doc = frame.contentDocument || frame.contentWindow.document;
+        doc.open();
+        doc.write('<div style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100%;color:#94a3b8;padding:2rem;text-align:center;"><div><i class="fas fa-globe" style="font-size:2rem;margin-bottom:1rem;display:block;"></i><p>No landing page selected.<br>Choose a landing page in the sidebar to preview it here.</p></div></div>');
+        doc.close();
+        return;
+    }
+    fetch(`/landing-pages/${lpId}/preview`)
+        .then(r => r.text())
+        .then(html => {
+            const frame = document.getElementById('previewFrame');
+            const doc = frame.contentDocument || frame.contentWindow.document;
+            doc.open(); doc.write(html); doc.close();
+        })
+        .catch(() => {
+            const frame = document.getElementById('previewFrame');
+            const doc = frame.contentDocument || frame.contentWindow.document;
+            doc.open(); doc.write('<p style="padding:2rem;color:red;">Failed to load landing page preview.</p>'); doc.close();
+        });
+}
+
+// Re-render when landing page selection changes while in landing preview mode
+document.addEventListener('DOMContentLoaded', function() {
+    const lpSelect = document.getElementById('landingPageSelect');
+    if (lpSelect) {
+        lpSelect.addEventListener('change', function() {
+            if (_previewContentMode === 'landing') loadLandingPagePreview();
+        });
+    }
+});
+
+function setPreviewMode(mode) {
+    const container = document.getElementById('previewContainer');
+    const desktopBtn = document.getElementById('desktopBtn');
+    const mobileBtn = document.getElementById('mobileBtn');
+    if (mode === 'mobile') {
+        container.style.maxWidth = '375px';
+        mobileBtn.className = 'px-2 py-1 bg-blue-600 text-white rounded text-xs';
+        desktopBtn.className = 'px-2 py-1 bg-slate-700 text-slate-300 rounded text-xs';
+    } else {
+        container.style.maxWidth = '100%';
+        desktopBtn.className = 'px-2 py-1 bg-blue-600 text-white rounded text-xs';
+        mobileBtn.className = 'px-2 py-1 bg-slate-700 text-slate-300 rounded text-xs';
+    }
+}
+
+
+function loadDefaultTemplate() { monacoEditor.setValue(defaultTemplate); document.getElementById('templateSelect').value = 'default'; }
+
+function insertVariable(name) {
+    if (!monacoEditor) return;
+    const sel = monacoEditor.getSelection();
+    const text = '{' + '{' + name + '}' + '}';
+    monacoEditor.executeEdits('insert', [{ range: sel, text: text, forceMoveMarkers: true }]);
+    monacoEditor.focus();
+}
+
+function insertTag(tag) {
+    if (!monacoEditor) return;
+    const sel = monacoEditor.getSelection();
+    const txt = monacoEditor.getModel().getValueInRange(sel);
+    monacoEditor.executeEdits('insert', [{ range: sel, text: `<${tag}>${txt}</${tag}>`, forceMoveMarkers: true }]);
+    monacoEditor.focus();
+}
+
+async function insertLink() {
+    const url = await showPrompt('Enter URL:', 'https://');
+    if (!url) return;
+    const sel = monacoEditor.getSelection();
+    const txt = monacoEditor.getModel().getValueInRange(sel) || 'Click here';
+    monacoEditor.executeEdits('insert', [{ range: sel, text: `<a href="${url}">${txt}</a>`, forceMoveMarkers: true }]);
+    monacoEditor.focus();
+}
+
+async function insertImage() {
+    const url = await showPrompt('Enter image URL:', 'https://');
+    if (!url) return;
+    const alt = await showPrompt('Enter alt text:', 'Image');
+    const sel = monacoEditor.getSelection();
+    monacoEditor.executeEdits('insert', [{ range: sel, text: `<img src="${url}" alt="${alt}" style="max-width: 100%;">`, forceMoveMarkers: true }]);
+    monacoEditor.focus();
+}
+
+function insertTable() {
+    const txt = `<table border="1" cellpadding="10" style="border-collapse: collapse; width: 100%;"><tr><th>Header 1</th><th>Header 2</th></tr><tr><td>Cell 1</td><td>Cell 2</td></tr></table>`;
+    const sel = monacoEditor.getSelection();
+    monacoEditor.executeEdits('insert', [{ range: sel, text: txt, forceMoveMarkers: true }]);
+    monacoEditor.focus();
+}
+
+function toggleSmtpForm() { document.getElementById('smtpCreateForm').classList.toggle('hidden'); }
+
+function saveNewSmtpProfile() {
+    const name = document.getElementById('newSmtpName').value.trim();
+    const smtp_server = document.getElementById('newSmtpHost').value.trim();
+    const smtp_port = document.getElementById('newSmtpPort').value;
+    const sender_email = document.getElementById('newSmtpSenderEmail').value.trim();
+    const sender_name = document.getElementById('newSmtpSenderName').value.trim();
+    const smtp_user = document.getElementById('newSmtpUsername').value.trim();
+    const smtp_password = document.getElementById('newSmtpPassword').value;
+    const use_tls = document.getElementById('newSmtpTls').checked;
+    const use_ssl = document.getElementById('newSmtpSsl').checked;
+    
+    if (!name || !smtp_server || !sender_email) { 
+        toastWarning('Please fill in Name, SMTP Server, and Sender Email'); 
+        return; 
+    }
+    
+    fetch('/settings/smtp/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+            name, 
+            smtp_server, 
+            smtp_port: parseInt(smtp_port), 
+            sender_email,
+            sender_name: sender_name || null,
+            smtp_user: smtp_user || null, 
+            smtp_password: smtp_password || null, 
+            use_tls, 
+            use_ssl 
+        })
+    }).then(r => r.json()).then(data => {
+        if (data.success || data.id) {
+            const opt = document.createElement('option');
+            opt.value = data.id; opt.textContent = name; opt.selected = true;
+            document.getElementById('smtpProfileSelect').appendChild(opt);
+            const opt2 = document.createElement('option');
+            opt2.value = data.id; opt2.textContent = name;
+            document.getElementById('testSmtpProfile').appendChild(opt2);
+            // Clear form
+            document.getElementById('newSmtpName').value = '';
+            document.getElementById('newSmtpHost').value = '';
+            document.getElementById('newSmtpPort').value = '25';
+            document.getElementById('newSmtpSenderEmail').value = '';
+            document.getElementById('newSmtpSenderName').value = '';
+            document.getElementById('newSmtpUsername').value = '';
+            document.getElementById('newSmtpPassword').value = '';
+            document.getElementById('newSmtpTls').checked = false;
+            document.getElementById('newSmtpSsl').checked = false;
+            toggleSmtpForm();
+            toastSuccess('SMTP profile created successfully!');
+        } else { toastError('Error: ' + (data.error || 'Failed')); }
+    }).catch(err => toastError('Error: ' + err.message));
+}
+
+function showSendTestModal() {
+    document.getElementById('sendTestModal').classList.remove('hidden');
+    document.getElementById('sendTestModal').classList.add('flex');
+    document.getElementById('testEmailResult').classList.add('hidden');
+}
+
+function closeSendTestModal() {
+    document.getElementById('sendTestModal').classList.add('hidden');
+    document.getElementById('sendTestModal').classList.remove('flex');
+}
+
+function sendTestEmail() {
+    const toEmail = document.getElementById('testEmailTo').value.trim();
+    const smtpProfileId = document.getElementById('testSmtpProfile').value;
+    const subject = document.getElementById('subjectInput').value || 'Test Email';
+    const templateHtml = monacoEditor ? monacoEditor.getValue() : '';
+    // Pass the current template ID so backend can attach CID images/files
+    const templateId = _step2TemplateId;
+
+    if (!toEmail) { showTestResult('Please enter email', 'error'); return; }
+    showTestResult('Sending...', 'info');
+    fetch('/campaigns/send_test_email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+            to_email: toEmail, 
+            subject: subject, 
+            template_html: templateHtml, 
+            smtp_profile_id: smtpProfileId || null,
+            template_id: templateId || null
+        })
+    }).then(r => r.json()).then(data => {
+        if (data.success) showTestResult('Test email sent!', 'success');
+        else showTestResult('Error: ' + (data.error || 'Failed'), 'error');
+    });
+}
+
+function showTestResult(msg, type) {
+    const el = document.getElementById('testEmailResult');
+    el.classList.remove('hidden', 'bg-emerald-900/50', 'text-emerald-300', 'bg-red-900/50', 'text-red-300', 'bg-blue-900/50', 'text-blue-300');
+    if (type === 'success') el.classList.add('bg-emerald-900/50', 'text-emerald-300');
+    else if (type === 'error') el.classList.add('bg-red-900/50', 'text-red-300');
+    else el.classList.add('bg-blue-900/50', 'text-blue-300');
+    el.textContent = msg;
+}
+
+document.getElementById('templateForm').addEventListener('submit', function() { syncToHiddenInput(); });
+
+// ── Template selection: load CID images & attachments ─────────────────────
+function loadTemplate() {
+    const templateId = document.getElementById('templateSelect').value;
+    if (templateId === 'default') { monacoEditor.setValue(defaultTemplate); setTemplateAssets(null); return; }
+    if (!templateId) { setTemplateAssets(null); return; }
+    fetch(`/templates/get/${templateId}`).then(r => r.json()).then(data => {
+        if (data.html_content) monacoEditor.setValue(data.html_content);
+        if (data.subject) document.getElementById('subjectInput').value = data.subject;
+        setTemplateAssets(parseInt(templateId));
+    }).catch(err => console.error('Error loading template:', err));
+}
+
+let _step2TemplateId = {% if campaign and campaign.template_id %}{{ campaign.template_id }}{% else %}null{% endif %};
+
+function setTemplateAssets(tid) {
+    _step2TemplateId = tid;
+    const hasTpl = !!tid;
+    // Show/hide upload buttons and hint labels
+    document.getElementById('cidUploadBtn').classList.toggle('hidden', !hasTpl);
+    document.getElementById('cidNeedTemplate').classList.toggle('hidden', hasTpl);
+    document.getElementById('attachUploadBtn').classList.toggle('hidden', !hasTpl);
+    document.getElementById('attachNeedTemplate').classList.toggle('hidden', hasTpl);
+    if (hasTpl) {
+        loadCidImagesStep2(tid);
+        loadAttachmentsStep2(tid);
+    } else {
+        _cidPreviewMap = {};
+        document.getElementById('cidImageList').innerHTML = '';
+        document.getElementById('cidNoImages').style.display = 'block';
+        document.getElementById('attachmentList2').innerHTML = '';
+        document.getElementById('attachNoFiles').style.display = 'block';
+        updatePreview();
+    }
+}
+
+// ── CID Images ────────────────────────────────────────────────────────────
+function loadCidImagesStep2(tid) {
+    fetch(`/templates/${tid}/images`).then(r => r.json()).then(images => {
+        const list = document.getElementById('cidImageList');
+        const none = document.getElementById('cidNoImages');
+        list.innerHTML = '';
+        // Rebuild CID preview map and refresh preview
+        _cidPreviewMap = {};
+        if (!images || images.length === 0) { none.style.display = 'block'; updatePreview(); return; }
+        none.style.display = 'none';
+        images.forEach(function(img) {
+            if (img.cid && img.preview) _cidPreviewMap[img.cid] = img.preview;
+            const row = document.createElement('div');
+            row.className = 'flex items-center gap-2 p-1.5 bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-white/10';
+            row.innerHTML = `<img src="${img.preview}" class="w-7 h-7 object-cover rounded flex-shrink-0 border border-slate-200" onerror="this.style.display='none'">
+              <div class="flex-1 min-w-0">
+                <div class="font-medium text-slate-700 dark:text-slate-200 truncate">${img.filename}</div>
+                <code class="text-blue-500 text-[10px] select-all">cid:${img.cid}</code>
+              </div>
+              <button type="button" onclick="insertCidStep2('${img.cid}')" class="text-blue-500 hover:text-blue-400 shrink-0" title="Insert"><i class="fas fa-plus-circle"></i></button>
+              <button type="button" onclick="deleteCidStep2(${img.id},${tid})" class="text-red-400 hover:text-red-300 shrink-0" title="Delete"><i class="fas fa-trash"></i></button>`;
+            list.appendChild(row);
+        });
+        updatePreview(); // re-render with CID substitutions
+    });
+}
+
+function insertCidStep2(cid) {
+    const sel = monacoEditor.getSelection();
+    monacoEditor.executeEdits('insert', [{ range: sel, text: `<img src="cid:${cid}" alt="image" style="max-width:100%;">`, forceMoveMarkers: true }]);
+    monacoEditor.focus();
+}
+
+function deleteCidStep2(imgId, tid) {
+    if (!confirm('Delete this CID image?')) return;
+    fetch(`/templates/${tid}/images/${imgId}`, { method: 'DELETE' }).then(r => r.json()).then(d => {
+        if (d.success) loadCidImagesStep2(tid);
+        else toastError('Delete failed: ' + (d.error || 'unknown'));
+    });
+}
+
+function uploadCidImageStep2(input) {
+    if (!input.files[0] || !_step2TemplateId) return;
+    const fd = new FormData(); fd.append('image', input.files[0]);
+    fetch(`/templates/${_step2TemplateId}/images`, { method: 'POST', body: fd }).then(r => r.json()).then(d => {
+        if (d.success) { toastSuccess('CID image uploaded!'); loadCidImagesStep2(_step2TemplateId); }
+        else toastError('Upload failed: ' + (d.error || 'unknown'));
+    });
+    input.value = '';
+}
+// ── File Attachments ──────────────────────────────────────────────────────
+function loadAttachmentsStep2(tid) {
+    fetch(`/templates/${tid}/attachments`).then(r => r.json()).then(atts => {
+        const list = document.getElementById('attachmentList2');
+        const none = document.getElementById('attachNoFiles');
+        list.innerHTML = '';
+        if (!atts || atts.length === 0) { none.style.display = 'block'; return; }
+        none.style.display = 'none';
+        atts.forEach(function(a) {
+            const kb = a.size ? (a.size / 1024).toFixed(1) + ' KB' : '';
+            const row = document.createElement('div');
+            row.className = 'flex items-center gap-2 p-1.5 bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-white/10';
+            row.innerHTML = `<i class="fas fa-file text-violet-400 shrink-0"></i>
+              <div class="flex-1 min-w-0">
+                <div class="font-medium text-slate-700 dark:text-slate-200 truncate">${a.filename}</div>
+                <div class="text-slate-400 text-[10px]">${kb}</div>
+              </div>
+              <button type="button" onclick="deleteAttachmentStep2(${a.id},${tid})" class="text-red-400 hover:text-red-300 shrink-0" title="Delete"><i class="fas fa-trash"></i></button>`;
+            list.appendChild(row);
+        });
+    });
+}
+
+function uploadAttachmentStep2(input) {
+    if (!input.files[0] || !_step2TemplateId) return;
+    const fd = new FormData(); fd.append('file', input.files[0]);
+    fetch(`/templates/${_step2TemplateId}/attachments`, { method: 'POST', body: fd }).then(r => r.json()).then(d => {
+        if (d.success) { toastSuccess('Attachment added!'); loadAttachmentsStep2(_step2TemplateId); }
+        else toastError('Upload failed: ' + (d.error || 'unknown'));
+    });
+    input.value = '';
+}
+
+function deleteAttachmentStep2(attId, tid) {
+    if (!confirm('Remove this attachment?')) return;
+    fetch(`/templates/${tid}/attachments/${attId}`, { method: 'DELETE' }).then(r => r.json()).then(d => {
+        if (d.success) loadAttachmentsStep2(tid);
+        else toastError('Delete failed: ' + (d.error || 'unknown'));
+    });
+}
+
+// ── Hosted Images ─────────────────────────────────────────────────────────
+function loadHostedImagesStep2() {
+    fetch('/api/images').then(r => r.json()).then(imgs => {
+        const list = document.getElementById('hostedImageList2');
+        const none = document.getElementById('hostedNoImages2');
+        list.innerHTML = '';
+        if (!imgs || imgs.length === 0) { none.style.display = 'block'; return; }
+        none.style.display = 'none';
+        imgs.forEach(function(img) {
+            const row = document.createElement('div');
+            row.className = 'flex items-center gap-2 p-1.5 bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-white/10';
+            row.innerHTML = `<img src="${img.url}" class="w-7 h-7 object-cover rounded flex-shrink-0 border border-slate-200" onerror="this.style.display='none'">
+              <div class="flex-1 min-w-0 truncate text-slate-700 dark:text-slate-200">${img.filename}</div>
+              <button type="button" onclick="insertHostedStep2('${img.url}')" class="text-emerald-500 hover:text-emerald-400 shrink-0" title="Insert"><i class="fas fa-plus-circle"></i></button>
+              <button type="button" onclick="copyUrlStep2('${img.url}')" class="text-slate-400 hover:text-slate-300 shrink-0" title="Copy URL"><i class="fas fa-copy"></i></button>`;
+            list.appendChild(row);
+        });
+    });
+}
+
+function insertHostedStep2(url) {
+    const sel = monacoEditor.getSelection();
+    monacoEditor.executeEdits('insert', [{ range: sel, text: `<img src="${url}" alt="image" style="max-width:100%;">`, forceMoveMarkers: true }]);
+    monacoEditor.focus();
+}
+
+function copyUrlStep2(url) {
+    navigator.clipboard.writeText(url).then(() => toastSuccess('URL copied!')).catch(() => toastError('Copy failed'));
+}
+
+function uploadHostedImageStep2(input) {
+    if (!input.files[0]) return;
+    const fd = new FormData(); fd.append('image', input.files[0]);
+    fetch('/api/images', { method: 'POST', body: fd }).then(r => r.json()).then(d => {
+        if (d.success) { toastSuccess('Image uploaded!'); loadHostedImagesStep2(); }
+        else toastError('Upload failed: ' + (d.error || 'unknown'));
+    });
+    input.value = '';
+}
+
+// Init on page load
+(function() {
+    loadHostedImagesStep2();
+    if (_step2TemplateId) setTemplateAssets(_step2TemplateId);
+})();</script>
+
+<style>
+.preview-click-highlight {
+    background: rgba(59, 130, 246, 0.18) !important;
+    border-left: 3px solid #3b82f6 !important;
+}
+</style>
+{% endblock %}
+
+{% block modals %}
+<!-- Send Test Modal -->
+<div id="sendTestModal" class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center">
+  <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md p-6 border border-slate-200 dark:border-slate-700">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-lg font-bold text-slate-900 dark:text-slate-100"><i class="fas fa-paper-plane mr-2 text-orange-600 dark:text-orange-500"></i> Send Test Email</h3>
+      <button onclick="closeSendTestModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="space-y-4">
+      <div>
+        <label class="text-slate-700 dark:text-slate-300 text-sm font-medium block mb-1">Recipient Email</label>
+        <input type="email" id="testEmailTo" placeholder="test@example.com" class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500">
+      </div>
+      <div>
+        <label class="text-slate-700 dark:text-slate-300 text-sm font-medium block mb-1">SMTP Profile</label>
+        <select id="testSmtpProfile" class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500">
+          <option value="">-- Use Default --</option>
+          {% for profile in smtp_profiles %}
+          <option value="{{ profile.id }}">{{ profile.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div id="testEmailResult" class="hidden p-3 rounded-lg text-sm"></div>
+      <div class="flex gap-3">
+        <button type="button" onclick="sendTestEmail()" class="flex-1 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg font-medium"><i class="fas fa-paper-plane mr-2"></i> Send Test</button>
+        <button type="button" onclick="closeSendTestModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-slate-200 rounded-lg">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

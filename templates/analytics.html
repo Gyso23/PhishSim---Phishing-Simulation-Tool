@@ -1,0 +1,582 @@
+﻿{% extends "base.html" %}
+{% block title %}Campaign Intelligence{% endblock %}
+{% block content %}
+<style>
+  /* KPI cards */
+  .kpi-card {
+    background: #fff; border-radius: 0.75rem; border: 1px solid #e2e8f0;
+    padding: 1rem; display: flex; flex-direction: column; gap: 0.15rem;
+  }
+  .dark .kpi-card { background: #1e293b; border-color: #334155; }
+  .kpi-value { font-size: 1.875rem; font-weight: 700; color: #0f172a; line-height: 1; }
+  .dark .kpi-value { color: #f1f5f9; }
+  .kpi-rate  { font-size: 0.875rem; font-weight: 500; color: #64748b; }
+  .dark .kpi-rate { color: #94a3b8; }
+  .kpi-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.07em; color: #94a3b8; margin-top: 0.15rem; }
+  .dark .kpi-label { color: #64748b; }
+  .kpi-delta { font-size: 0.72rem; font-weight: 700; padding: 0.15rem 0.45rem; border-radius: 9999px; display: inline-block; margin-top: 0.25rem; }
+  .delta-good    { background: #d1fae5; color: #065f46; }
+  .dark .delta-good { background: rgba(16,185,129,0.2); color: #34d399; }
+  .delta-bad     { background: #fee2e2; color: #991b1b; }
+  .dark .delta-bad  { background: rgba(239,68,68,0.2); color: #f87171; }
+  .delta-neutral { background: #f1f5f9; color: #64748b; }
+  .dark .delta-neutral { background: #334155; color: #94a3b8; }
+
+  /* Section headers */
+  .section-hdr   { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+  .section-title { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #64748b; }
+  .dark .section-title { color: #94a3b8; }
+
+  /* Data table */
+  .data-table { width: 100%; font-size: 0.875rem; border-collapse: collapse; }
+  .data-table thead th {
+    padding: 0.5rem 0.75rem; text-align: left; font-size: 0.72rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.07em; color: #64748b;
+    border-bottom: 1px solid #e2e8f0; white-space: nowrap;
+  }
+  .dark .data-table thead th { color: #94a3b8; border-color: #334155; }
+  .data-table tbody td {
+    padding: 0.5rem 0.75rem; border-bottom: 1px solid #f1f5f9; color: #475569;
+  }
+  .dark .data-table tbody td { border-color: #1e293b; color: #cbd5e1; }
+  .data-table tbody tr:hover td { background: #f8fafc; }
+  .dark .data-table tbody tr:hover td { background: rgba(51,65,85,0.4); }
+  .data-table tbody tr:last-child td { border-bottom: none; }
+  .data-table tfoot td {
+    padding: 0.5rem 0.75rem; font-weight: 700; color: #0f172a;
+    background: #f8fafc; border-top: 2px solid #e2e8f0;
+  }
+  .dark .data-table tfoot td { color: #f1f5f9; background: rgba(51,65,85,0.6); border-color: #334155; }
+
+  /* Risk/Report badges */
+  .badge-risk-high   { font-size: 0.72rem; font-weight: 700; padding: 0.15rem 0.5rem; border-radius: 9999px; background: #fee2e2; color: #b91c1c; }
+  .badge-risk-mid    { font-size: 0.72rem; font-weight: 700; padding: 0.15rem 0.5rem; border-radius: 9999px; background: #fef3c7; color: #b45309; }
+  .badge-risk-low    { font-size: 0.72rem; font-weight: 700; padding: 0.15rem 0.5rem; border-radius: 9999px; background: #d1fae5; color: #065f46; }
+  .badge-report-high { font-size: 0.72rem; font-weight: 700; padding: 0.15rem 0.5rem; border-radius: 9999px; background: #d1fae5; color: #065f46; }
+  .badge-report-low  { font-size: 0.72rem; font-weight: 700; padding: 0.15rem 0.5rem; border-radius: 9999px; background: #fee2e2; color: #b91c1c; }
+  .dark .badge-risk-high   { background: rgba(239,68,68,0.2); color: #f87171; }
+  .dark .badge-risk-mid    { background: rgba(245,158,11,0.2); color: #fbbf24; }
+  .dark .badge-risk-low    { background: rgba(16,185,129,0.2); color: #34d399; }
+  .dark .badge-report-high { background: rgba(16,185,129,0.2); color: #34d399; }
+  .dark .badge-report-low  { background: rgba(239,68,68,0.2); color: #f87171; }
+
+  /* Timeline cards */
+  .timeline-card {
+    flex-shrink: 0; width: 11rem; border-radius: 0.5rem; border: 1px solid #e2e8f0;
+    background: #fff; padding: 0.75rem; cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .dark .timeline-card { background: #1e293b; border-color: #334155; }
+  .timeline-card:hover { border-color: #135bec; }
+  .timeline-card.active { border-color: #135bec; box-shadow: 0 0 0 2px #135bec; }
+  .timeline-bar-track { width: 100%; background: #e2e8f0; border-radius: 9999px; height: 5px; margin-top: 0.4rem; }
+  .dark .timeline-bar-track { background: #334155; }
+  .timeline-bar-fill { height: 5px; border-radius: 9999px; transition: width 0.3s; }
+
+  /* Config toggles */
+  .config-section-toggle { display: flex; align-items: center; gap: 0.6rem; font-size: 0.875rem; cursor: pointer; user-select: none; }
+  .toggle-pill { position: relative; display: inline-flex; height: 1.25rem; width: 2.25rem; align-items: center; border-radius: 9999px; transition: background-color 0.2s; flex-shrink: 0; }
+  .toggle-pill-thumb { display: inline-block; height: 0.875rem; width: 0.875rem; transform: translateX(2px); border-radius: 9999px; background: white; transition: transform 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+  .toggle-pill-thumb.on { transform: translateX(18px); }
+
+  /* Modal */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 1rem; }
+  .modal-box { background: white; border-radius: 1rem; box-shadow: 0 25px 50px rgba(0,0,0,0.3); width: 100%; max-width: 52rem; max-height: 90vh; display: flex; flex-direction: column; border: 1px solid #e2e8f0; overflow: hidden; }
+  .dark .modal-box { background: #1e293b; border-color: #334155; }
+
+  /* Comparison table */
+  .compare-tbl { width: 100%; border-collapse: collapse; }
+  .compare-tbl th { padding: 0.5rem 1rem; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; text-align: left; color: #64748b; }
+  .dark .compare-tbl th { color: #94a3b8; }
+  .compare-tbl td { padding: 0.6rem 1rem; font-size: 0.875rem; border-top: 1px solid #f1f5f9; color: #475569; }
+  .dark .compare-tbl td { border-color: #334155; color: #cbd5e1; }
+</style>
+
+<div class="max-w-screen-xl mx-auto px-4 py-6 space-y-6">
+
+  <!-- Page Header -->
+  <div class="flex flex-wrap items-end gap-4">
+    <div>
+      <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Campaign Intelligence</h1>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Compare campaigns, analyse trends, and configure exports</p>
+    </div>
+    <div class="flex flex-wrap gap-3 ml-auto items-end">
+      <div>
+        <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Primary Campaign</label>
+        <select id="campaignSelect" onchange="onCampaignChange()"
+          class="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white text-sm rounded-lg px-3 py-2 min-w-[220px]">
+          <option value="">— Select Campaign —</option>
+          {% for c in campaigns %}<option value="{{ c.id }}" {% if loop.last %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Compare With</label>
+        <select id="compareSelect" onchange="onCompareChange()"
+          class="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white text-sm rounded-lg px-3 py-2 min-w-[220px]">
+          <option value="">— No Comparison —</option>
+          {% for c in campaigns %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <button onclick="triggerExport()" class="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors">
+        <i class="fas fa-file-excel"></i> Export Excel
+      </button>
+      <a id="viewReportBtn" href="#" class="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-white text-sm font-medium rounded-lg transition-colors">
+        <i class="fas fa-file-alt"></i> Full Report
+      </a>
+    </div>
+  </div>
+
+  <!-- KPI Strip -->
+  <div id="kpiStrip" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+    <div class="col-span-full flex items-center justify-center py-8 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-400 text-sm" id="kpiPlaceholder">
+      <i class="fas fa-arrow-up mr-2"></i> Select a campaign above to load data
+    </div>
+  </div>
+
+  <!-- Comparison Banner -->
+  <div id="comparisonBanner" class="hidden bg-white dark:bg-slate-800 rounded-xl border border-blue-300 dark:border-blue-700 overflow-hidden">
+    <div class="flex items-center gap-3 px-5 py-3 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-700">
+      <i class="fas fa-balance-scale text-primary"></i>
+      <span class="font-semibold text-slate-800 dark:text-white text-sm">Campaign Comparison</span>
+      <span id="compBannerLabel" class="text-xs text-slate-500 dark:text-slate-400 ml-1"></span>
+      <button onclick="document.getElementById('compareSelect').value=''; onCompareChange();" class="ml-auto text-xs text-slate-400 hover:text-slate-700 dark:hover:text-white">
+        <i class="fas fa-times mr-1"></i>Clear
+      </button>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="compare-tbl w-full">
+        <thead>
+          <tr><th>Metric</th><th id="compColPrimary">Primary</th><th id="compColCompare">Compare</th><th>Change</th></tr>
+        </thead>
+        <tbody id="compareTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Campaign Timeline -->
+  <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
+    <div class="section-hdr">
+      <span class="section-title"><i class="fas fa-history mr-2 text-primary"></i>Campaign History</span>
+      <span class="text-xs text-slate-400 dark:text-slate-500">Click a card to load it · bars show click rate</span>
+    </div>
+    <div id="timelineScroll" class="flex gap-3 overflow-x-auto pb-2" style="scrollbar-width:thin">
+      <div class="text-sm text-slate-400 dark:text-slate-500 py-4" id="timelinePlaceholder"><i class="fas fa-spinner fa-spin mr-2"></i> Loading history…</div>
+    </div>
+  </div>
+
+  <!-- SBU Breakdown -->
+  <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+    <div class="px-5 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
+      <span class="section-title mb-0"><i class="fas fa-building mr-2 text-primary"></i>SBU / Subsidiary Performance</span>
+      <select id="sbuSortSelect" onchange="sortSBU()" class="text-xs bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg px-2 py-1 text-slate-700 dark:text-slate-300">
+        <option value="click_rate_desc">Click Rate ↓</option>
+        <option value="click_rate_asc">Click Rate ↑</option>
+        <option value="targeted_desc">Targeted ↓</option>
+        <option value="report_rate_desc">Report Rate ↓</option>
+      </select>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="data-table" id="sbuTable">
+        <thead>
+          <tr>
+            <th>SBU / Subsidiary</th>
+            <th class="text-right">Targeted</th>
+            <th class="text-right">Opened</th>
+            <th class="text-right">Clicked</th>
+            <th class="text-right">Click Rate</th>
+            <th class="text-right">Reported</th>
+            <th class="text-right">Report Rate</th>
+            <th class="text-right">Compromised</th>
+            <th id="sbuDeltaHeader" class="text-right hidden">Δ Click Rate</th>
+            <th class="text-right">Drilldown</th>
+          </tr>
+        </thead>
+        <tbody id="sbuTableBody">
+          <tr><td colspan="10" class="py-8 text-center text-slate-400 text-sm">Select a campaign to load data.</td></tr>
+        </tbody>
+        <tfoot id="sbuTableFoot"></tfoot>
+      </table>
+    </div>
+  </div>
+
+  <!-- Excel Report Config -->
+  <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+    <button onclick="toggleConfigPanel()" class="w-full flex items-center justify-between px-5 py-4 text-left">
+      <div class="flex items-center gap-3">
+        <i class="fas fa-sliders-h text-primary"></i>
+        <span class="font-semibold text-slate-800 dark:text-white text-sm">Excel Report Configuration</span>
+        <span class="text-xs text-slate-400 dark:text-slate-500 hidden sm:block">Choose which sections appear in the export</span>
+      </div>
+      <i id="configChevron" class="fas fa-chevron-down text-slate-400 transition-transform duration-200"></i>
+    </button>
+    <div id="configPanel" class="hidden border-t border-slate-100 dark:border-slate-700 px-5 py-5">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-6">
+        <label class="config-section-toggle">
+          <span class="toggle-pill" id="pill_cfg_cover" style="background:#135bec"><span class="toggle-pill-thumb on"></span></span>
+          <input type="checkbox" id="cfg_cover" checked class="sr-only" onchange="updateToggle(this)">
+          <div><div class="font-medium text-slate-700 dark:text-slate-200">Cover Page</div><div class="text-xs text-slate-400">Campaign summary + branding</div></div>
+        </label>
+        <label class="config-section-toggle">
+          <span class="toggle-pill" id="pill_cfg_summary" style="background:#135bec"><span class="toggle-pill-thumb on"></span></span>
+          <input type="checkbox" id="cfg_summary" checked class="sr-only" onchange="updateToggle(this)">
+          <div><div class="font-medium text-slate-700 dark:text-slate-200">Executive Summary</div><div class="text-xs text-slate-400">KPIs + SBU breakdown + clickers</div></div>
+        </label>
+        <label class="config-section-toggle">
+          <span class="toggle-pill" id="pill_cfg_targets" style="background:#135bec"><span class="toggle-pill-thumb on"></span></span>
+          <input type="checkbox" id="cfg_targets" checked class="sr-only" onchange="updateToggle(this)">
+          <div><div class="font-medium text-slate-700 dark:text-slate-200">Target Details Sheet</div><div class="text-xs text-slate-400">Full per-user result rows</div></div>
+        </label>
+        <label class="config-section-toggle">
+          <span class="toggle-pill" id="pill_cfg_email" style="background:#135bec"><span class="toggle-pill-thumb on"></span></span>
+          <input type="checkbox" id="cfg_email" checked class="sr-only" onchange="updateToggle(this)">
+          <div><div class="font-medium text-slate-700 dark:text-slate-200">Email Preview</div><div class="text-xs text-slate-400">Rendered phishing email screenshot</div></div>
+        </label>
+        <label class="config-section-toggle">
+          <span class="toggle-pill" id="pill_cfg_reporters" style="background:#135bec"><span class="toggle-pill-thumb on"></span></span>
+          <input type="checkbox" id="cfg_reporters" checked class="sr-only" onchange="updateToggle(this)">
+          <div><div class="font-medium text-slate-700 dark:text-slate-200">Reporter Listing</div><div class="text-xs text-slate-400">Users who reported the phish</div></div>
+        </label>
+        <label class="config-section-toggle">
+          <span class="toggle-pill" id="pill_cfg_compromised" style="background:#135bec"><span class="toggle-pill-thumb on"></span></span>
+          <input type="checkbox" id="cfg_compromised" checked class="sr-only" onchange="updateToggle(this)">
+          <div><div class="font-medium text-slate-700 dark:text-slate-200">Compromised Users</div><div class="text-xs text-slate-400">Clicked and did not report</div></div>
+        </label>
+      </div>
+      <div class="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-700">
+        <p class="text-xs text-slate-400 italic">Configuration is saved in your browser.</p>
+        <button onclick="triggerExport()" class="flex items-center gap-2 px-5 py-2 bg-primary hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors">
+          <i class="fas fa-file-excel"></i> Export Now
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Drilldown Modal -->
+<div id="drilldownModal" class="modal-overlay" style="display:none">
+  <div class="modal-box">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+      <div>
+        <h3 class="font-bold text-slate-900 dark:text-white text-lg" id="drilldownTitle">SBU Drilldown</h3>
+        <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5" id="drilldownSubtitle"></p>
+      </div>
+      <div class="flex items-center gap-2">
+        <select id="drilldownStatus" onchange="loadDrilldown()" class="text-xs bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg px-2 py-1 text-slate-600 dark:text-slate-300">
+          <option value="all">All Targets</option>
+          <option value="clicked">Clicked</option>
+          <option value="reported">Reported</option>
+          <option value="safe">Safe</option>
+        </select>
+        <button onclick="closeDrilldown()" class="text-slate-400 hover:text-slate-700 dark:hover:text-white p-1 text-xl leading-none">&times;</button>
+      </div>
+    </div>
+    <div class="overflow-auto flex-1 px-6 py-4" id="drilldownBody">
+      <div class="text-center py-8 text-slate-400 text-sm">Loading…</div>
+    </div>
+    <div id="drilldownPager" class="px-6 py-3 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between text-xs text-slate-400 dark:text-slate-500"></div>
+  </div>
+</div>
+
+<script>
+let _stats = null, _compareStats = null, _sbuList = [], _sortedSBU = [];
+let _currentSBU = null, _drillPage = 1, _drillPages = 1;
+let _historyData = [];
+
+document.addEventListener('DOMContentLoaded', () => {
+  restoreConfig();
+  loadCampaignHistory();
+  const cid = document.getElementById('campaignSelect').value;
+  if (cid) { loadAnalytics(); updateReportLink(); }
+});
+
+function onCampaignChange() { loadAnalytics(); updateReportLink(); }
+function onCompareChange()  { loadAnalytics(); }
+
+function updateReportLink() {
+  const cid = document.getElementById('campaignSelect').value;
+  document.getElementById('viewReportBtn').href = cid ? '/report/' + cid : '#';
+}
+
+async function loadAnalytics() {
+  const cid = document.getElementById('campaignSelect').value;
+  const vid = document.getElementById('compareSelect').value;
+  if (!cid) return;
+  const [ovRes, sbuRes] = await Promise.all([
+    fetch('/api/analytics/overview?campaign_id=' + cid + (vid ? '&compare_id=' + vid : '')).then(r => r.json()),
+    fetch('/api/analytics/sbu_breakdown?campaign_id=' + cid + (vid ? '&compare_id=' + vid : '')).then(r => r.json()),
+  ]);
+  _stats = ovRes.stats || null;
+  _compareStats = ovRes.compare_stats || null;
+  _sbuList = sbuRes.sbu_list || [];
+  if (vid && _sbuList.length) {
+    _sbuList.forEach(s => { if (s.prev_click_rate !== undefined) s._clickDelta = +(s.click_rate - s.prev_click_rate).toFixed(1); });
+  } else {
+    _sbuList.forEach(s => { delete s._clickDelta; });
+  }
+  renderKPIs();
+  renderComparison();
+  renderSBUTable();
+  renderTimeline();
+}
+
+function renderKPIs() {
+  if (!_stats) return;
+  const s = _stats, c = _compareStats;
+  const placeholder = document.getElementById('kpiPlaceholder');
+  if (placeholder) placeholder.remove();
+  const metrics = [
+    { label: 'Targeted',         value: s.total,                       rate: null,             betterLower: false, color: '' },
+    { label: 'Opened',           value: s.opened,                      rate: s.open_rate,      betterLower: false, color: '#3b82f6' },
+    { label: 'Clicked',          value: s.clicked,                     rate: s.click_rate,     betterLower: true,  color: '#ef4444' },
+    { label: 'Reported',         value: s.reported,                    rate: s.report_rate,    betterLower: false, color: '#22c55e' },
+    { label: 'Compromised',      value: s.compromised,                 rate: s.compromise_rate,betterLower: true,  color: '#f59e0b' },
+    { label: 'Quest. Finished',  value: s.questionnaire_finished ?? 0, rate: s.questionnaire_rate ?? null, betterLower: false, color: '#8b5cf6' },
+  ];
+  const compRates = c ? [null, c.open_rate, c.click_rate, c.report_rate, c.compromise_rate, c.questionnaire_rate ?? null] : [];
+  const strip = document.getElementById('kpiStrip');
+  strip.innerHTML = '';
+  metrics.forEach((m, i) => {
+    const prev = c ? compRates[i] : null;
+    const delta = (prev !== null && prev !== undefined && m.rate !== null && m.rate !== undefined) ? +(m.rate - prev).toFixed(1) : null;
+    let deltaHtml = '';
+    if (delta !== null && !isNaN(delta)) {
+      const good = m.betterLower ? delta < 0 : delta > 0;
+      const cls = delta === 0 ? 'delta-neutral' : (good ? 'delta-good' : 'delta-bad');
+      const ico = delta > 0 ? '↑' : (delta < 0 ? '↓' : '→');
+      deltaHtml = '<span class="kpi-delta ' + cls + '">' + ico + ' ' + Math.abs(delta) + '%</span>';
+    }
+    const colorStyle = m.color ? 'color:' + m.color : '';
+    const rateStr = m.rate !== null && m.rate !== undefined ? m.rate + '%' : '';
+    strip.insertAdjacentHTML('beforeend',
+      '<div class="kpi-card"><div class="kpi-value" style="' + colorStyle + '">' + m.value + '</div>' +
+      '<div class="kpi-rate">' + rateStr + '</div>' +
+      '<div class="kpi-label">' + m.label + '</div>' + deltaHtml + '</div>');
+  });
+}
+
+function renderComparison() {
+  const banner = document.getElementById('comparisonBanner');
+  if (!_stats || !_compareStats) { banner.classList.add('hidden'); return; }
+  banner.classList.remove('hidden');
+  const s = _stats, c = _compareStats;
+  const pName = document.getElementById('campaignSelect').selectedOptions[0]?.text || 'Primary';
+  const cName = document.getElementById('compareSelect').selectedOptions[0]?.text || 'Compare';
+  document.getElementById('compBannerLabel').textContent = pName + ' vs ' + cName;
+  document.getElementById('compColPrimary').textContent = pName;
+  document.getElementById('compColCompare').textContent = cName;
+  const rows = [
+    { label: 'Targeted',        pVal: s.total,            cVal: c.total,            isRate: false, betterLower: false },
+    { label: 'Opened',          pVal: s.opened,           cVal: c.opened,           isRate: false, betterLower: false },
+    { label: 'Open Rate',       pVal: s.open_rate,        cVal: c.open_rate,        isRate: true,  betterLower: false },
+    { label: 'Clicked',         pVal: s.clicked,          cVal: c.clicked,          isRate: false, betterLower: true  },
+    { label: 'Click Rate',      pVal: s.click_rate,       cVal: c.click_rate,       isRate: true,  betterLower: true  },
+    { label: 'Reported',        pVal: s.reported,         cVal: c.reported,         isRate: false, betterLower: false },
+    { label: 'Report Rate',     pVal: s.report_rate,      cVal: c.report_rate,      isRate: true,  betterLower: false },
+    { label: 'Compromised',     pVal: s.compromised,      cVal: c.compromised,      isRate: false, betterLower: true  },
+    { label: 'Compromise Rate', pVal: s.compromise_rate,  cVal: c.compromise_rate,  isRate: true,  betterLower: true  },
+  ];
+  document.getElementById('compareTableBody').innerHTML = rows.map(r => {
+    const delta = (r.pVal !== undefined && r.cVal !== undefined) ? r.pVal - r.cVal : null;
+    let dHtml = '—';
+    if (delta !== null && !isNaN(delta)) {
+      const good = r.betterLower ? delta < 0 : delta > 0;
+      const cls = delta === 0 ? 'color:#94a3b8' : (good ? 'color:#16a34a' : 'color:#dc2626');
+      const ico = delta > 0 ? '↑' : (delta < 0 ? '↓' : '→');
+      const lbl = delta !== 0 ? (good ? ' improved' : ' worse') : '';
+      dHtml = '<span style="' + cls + ';font-weight:600">' + ico + ' ' + Math.abs(+(delta).toFixed(r.isRate?1:0)) + (r.isRate?'%':'') + lbl + '</span>';
+    }
+    return '<tr><td style="font-weight:500;color:#475569" class="dark:text-slate-200">' + r.label + '</td>' +
+      '<td>' + (r.pVal ?? '—') + (r.isRate ? '%' : '') + '</td>' +
+      '<td style="color:#94a3b8">' + (r.cVal ?? '—') + (r.isRate ? '%' : '') + '</td>' +
+      '<td>' + dHtml + '</td></tr>';
+  }).join('');
+}
+
+async function loadCampaignHistory() {
+  const res = await fetch('/api/analytics/campaign_history').then(r => r.json());
+  _historyData = res.history || [];
+  renderTimeline();
+}
+
+function renderTimeline() {
+  const scroll = document.getElementById('timelineScroll');
+  if (!_historyData.length) { scroll.innerHTML = '<p class="text-sm text-slate-400 py-2">No campaigns found.</p>'; return; }
+  const activeCid = String(document.getElementById('campaignSelect').value || '');
+  const compareCid = String(document.getElementById('compareSelect').value || '');
+  scroll.innerHTML = _historyData.map(c => {
+    const pct = Math.min(c.click_rate, 100);
+    const col = pct > 20 ? '#ef4444' : pct > 10 ? '#f59e0b' : '#22c55e';
+    const isActive = String(c.id) === activeCid;
+    const isCompare = String(c.id) === compareCid;
+    const cmpBadge = isCompare ? '<span style="font-size:10px;font-weight:700;padding:1px 5px;border-radius:9999px;background:#ede9fe;color:#7c3aed;margin-left:4px">CMP</span>' : '';
+    const border = isActive ? 'border-color:#135bec;box-shadow:0 0 0 1px #135bec' : 'border-color:#e2e8f0';
+    const darkBorder = isActive ? '' : '';
+    return '<div class="timeline-card" style="' + border + ';border-color:' + (isActive?'#135bec':'') + '" onclick="setFromTimeline(' + c.id + ')">' +
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:4px">' +
+      '<p style="font-size:11px;font-weight:600;color:#475569;line-height:1.3;flex:1;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical" class="dark:text-slate-300">' + c.name + cmpBadge + '</p>' +
+      (isActive ? '<span style="width:8px;height:8px;background:#135bec;border-radius:50%;flex-shrink:0;margin-top:3px"></span>' : '') +
+      '</div>' +
+      '<p style="font-size:10px;color:#94a3b8;margin-top:4px">' + c.created_at + '</p>' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">' +
+      '<span style="font-size:10px;color:#94a3b8">Click Rate</span>' +
+      '<span style="font-size:12px;font-weight:700;color:' + col + '">' + c.click_rate + '%</span></div>' +
+      '<div class="timeline-bar-track"><div class="timeline-bar-fill" style="width:' + pct + '%;background:' + col + '"></div></div>' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">' +
+      '<span style="font-size:10px;color:#94a3b8">Report Rate</span>' +
+      '<span style="font-size:10px;font-weight:600;color:#16a34a">' + c.report_rate + '%</span></div>' +
+      '</div>';
+  }).join('');
+}
+
+function setFromTimeline(id) {
+  document.getElementById('campaignSelect').value = String(id);
+  loadAnalytics();
+  updateReportLink();
+}
+
+function renderSBUTable() {
+  _sortedSBU = [..._sbuList];
+  sortSBU();
+}
+
+function sortSBU() {
+  const v = document.getElementById('sbuSortSelect').value;
+  if (v === 'click_rate_desc') _sortedSBU.sort((a, b) => b.click_rate - a.click_rate);
+  else if (v === 'click_rate_asc') _sortedSBU.sort((a, b) => a.click_rate - b.click_rate);
+  else if (v === 'targeted_desc') _sortedSBU.sort((a, b) => b.targeted - a.targeted);
+  else if (v === 'report_rate_desc') _sortedSBU.sort((a, b) => b.report_rate - a.report_rate);
+  const hasCompare = !!document.getElementById('compareSelect').value;
+  document.getElementById('sbuDeltaHeader').classList.toggle('hidden', !hasCompare);
+  const tbody = document.getElementById('sbuTableBody');
+  if (!_sortedSBU.length) {
+    tbody.innerHTML = '<tr><td colspan="10" class="py-8 text-center text-slate-400 text-sm">No data for this campaign.</td></tr>';
+    document.getElementById('sbuTableFoot').innerHTML = '';
+    return;
+  }
+  tbody.innerHTML = _sortedSBU.map(s => {
+    const cr = s.click_rate;
+    const crBadge = cr > 20 ? '<span class="badge-risk-high">' + cr + '%</span>' : cr > 10 ? '<span class="badge-risk-mid">' + cr + '%</span>' : '<span class="badge-risk-low">' + cr + '%</span>';
+    const rr = s.report_rate;
+    const rrBadge = rr > 10 ? '<span class="badge-report-high">' + rr + '%</span>' : '<span class="badge-report-low">' + rr + '%</span>';
+    let deltaCell = '';
+    if (hasCompare) {
+      if (s._clickDelta !== undefined) {
+        const col = s._clickDelta < 0 ? '#16a34a' : s._clickDelta > 0 ? '#dc2626' : '#94a3b8';
+        const ico = s._clickDelta > 0 ? '↑' : (s._clickDelta < 0 ? '↓' : '→');
+        deltaCell = '<td class="text-right"><span style="color:' + col + ';font-size:12px;font-weight:700">' + ico + ' ' + Math.abs(s._clickDelta) + '%</span></td>';
+      } else { deltaCell = '<td class="text-right" style="color:#94a3b8;font-size:12px">—</td>'; }
+    }
+    return '<tr><td style="font-weight:600" class="text-slate-800 dark:text-white">' + (s.sbu||'—') + '</td>' +
+      '<td class="text-right">' + s.targeted + '</td>' +
+      '<td class="text-right">' + s.opened + '</td>' +
+      '<td class="text-right">' + s.clicked + '</td>' +
+      '<td class="text-right">' + crBadge + '</td>' +
+      '<td class="text-right">' + s.reported + '</td>' +
+      '<td class="text-right">' + rrBadge + '</td>' +
+      '<td class="text-right" style="color:#d97706;font-weight:600">' + (s.compromised||0) + '</td>' +
+      deltaCell +
+      '<td class="text-right"><button onclick="openDrilldown(\'' + s.sbu.replace(/'/g,"\\'") + '\')" style="font-size:12px;color:#135bec">↗ Drill</button></td>' +
+      '</tr>';
+  }).join('');
+  const tot = _sortedSBU.reduce((a,s)=>({ targeted:a.targeted+s.targeted, opened:a.opened+s.opened, clicked:a.clicked+s.clicked, reported:a.reported+s.reported, compromised:a.compromised+(s.compromised||0) }), {targeted:0,opened:0,clicked:0,reported:0,compromised:0});
+  const tcr = tot.targeted ? (tot.clicked/tot.targeted*100).toFixed(1) : '0.0';
+  const trr = tot.targeted ? (tot.reported/tot.targeted*100).toFixed(1) : '0.0';
+  document.getElementById('sbuTableFoot').innerHTML = '<tr><td>Total</td><td class="text-right">' + tot.targeted + '</td><td class="text-right">' + tot.opened + '</td><td class="text-right">' + tot.clicked + '</td><td class="text-right">' + tcr + '%</td><td class="text-right">' + tot.reported + '</td><td class="text-right">' + trr + '%</td><td class="text-right">' + tot.compromised + '</td>' + (hasCompare?'<td></td>':'') + '<td></td></tr>';
+}
+
+function openDrilldown(sbu) {
+  _currentSBU = sbu;
+  _drillPage = 1;
+  document.getElementById('drilldownStatus').value = 'all';
+  document.getElementById('drilldownTitle').textContent = sbu + ' — Targets';
+  document.getElementById('drilldownModal').style.display = 'flex';
+  loadDrilldown();
+}
+function closeDrilldown() { document.getElementById('drilldownModal').style.display = 'none'; }
+document.getElementById('drilldownModal').addEventListener('click', function(e){ if(e.target===this) closeDrilldown(); });
+
+async function loadDrilldown() {
+  const cid = document.getElementById('campaignSelect').value;
+  const stat = document.getElementById('drilldownStatus').value;
+  const body = document.getElementById('drilldownBody');
+  if (!cid) { closeDrilldown(); return; }
+  body.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm"><i class="fas fa-spinner fa-spin mr-2"></i>Loading…</div>';
+  const sbuEnc = encodeURIComponent(_currentSBU || 'ALL');
+  const res = await fetch('/api/analytics/drilldown/' + sbuEnc + '?campaign_id=' + cid + '&status=' + stat + '&page=' + _drillPage + '&per_page=25').then(r => r.json());
+  if (!res.success || !res.targets?.length) {
+    body.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm">No targets match this filter.</div>';
+    document.getElementById('drilldownSubtitle').textContent = '';
+    document.getElementById('drilldownPager').innerHTML = '';
+    return;
+  }
+  _drillPages = res.pages || 1;
+  document.getElementById('drilldownSubtitle').textContent = (res.total||'') + ' targets · page ' + _drillPage + ' of ' + _drillPages;
+  body.innerHTML = '<table class="data-table"><thead><tr><th>Email</th><th>Name</th><th>SBU</th><th class="text-center">Opened</th><th class="text-center">Clicked</th><th class="text-center">Reported</th><th class="text-center">Compromised</th></tr></thead><tbody>' +
+    res.targets.map(t => '<tr>' +
+      '<td style="font-family:monospace;font-size:11px">' + t.email + '</td>' +
+      '<td>' + (t.first_name||'') + ' ' + (t.last_name||'') + '</td>' +
+      '<td>' + (t.sbu||'—') + '</td>' +
+      '<td class="text-center">' + (t.opened ? '<span style="color:#3b82f6">✓</span>' : '<span style="color:#cbd5e1">✗</span>') + '</td>' +
+      '<td class="text-center">' + (t.clicked ? '<span style="color:#ef4444">✓</span>' : '<span style="color:#cbd5e1">✗</span>') + '</td>' +
+      '<td class="text-center">' + (t.reported ? '<span style="color:#22c55e">✓</span>' : '<span style="color:#cbd5e1">✗</span>') + '</td>' +
+      '<td class="text-center">' + (t.compromised ? '<span style="color:#f59e0b;font-size:14px">⚠</span>' : '<span style="color:#cbd5e1">✗</span>') + '</td>' +
+      '</tr>').join('') + '</tbody></table>';
+  document.getElementById('drilldownPager').innerHTML =
+    '<button onclick="_drillPage=Math.max(1,_drillPage-1);loadDrilldown()" ' + (_drillPage<=1?'disabled':'') + ' class="px-3 py-1 text-xs rounded border border-slate-200 dark:border-slate-700 disabled:opacity-40 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer">‹ Prev</button>' +
+    '<span>' + _drillPage + ' / ' + _drillPages + '</span>' +
+    '<button onclick="_drillPage=Math.min(_drillPages,_drillPage+1);loadDrilldown()" ' + (_drillPage>=_drillPages?'disabled':'') + ' class="px-3 py-1 text-xs rounded border border-slate-200 dark:border-slate-700 disabled:opacity-40 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer">Next ›</button>';
+}
+
+function triggerExport() {
+  const cid = document.getElementById('campaignSelect').value;
+  if (!cid) { alert('Please select a campaign first.'); return; }
+  window.location.href = '/api/export/campaign_xlsx?campaign_id=' + cid;
+}
+
+function toggleConfigPanel() {
+  const panel = document.getElementById('configPanel');
+  const ch = document.getElementById('configChevron');
+  const opening = panel.classList.contains('hidden');
+  panel.classList.toggle('hidden');
+  ch.style.transform = opening ? 'rotate(180deg)' : '';
+  saveConfig();
+}
+
+function updateToggle(input) {
+  const pill = document.getElementById('pill_' + input.id);
+  const thumb = pill.querySelector('.toggle-pill-thumb');
+  if (input.checked) {
+    pill.style.background = '#135bec';
+    thumb.classList.add('on');
+    thumb.style.transform = 'translateX(18px)';
+  } else {
+    pill.style.background = '#cbd5e1';
+    thumb.classList.remove('on');
+    thumb.style.transform = 'translateX(2px)';
+  }
+  saveConfig();
+}
+
+function saveConfig() {
+  const keys = ['cfg_cover','cfg_summary','cfg_targets','cfg_email','cfg_reporters','cfg_compromised'];
+  const cfg = {};
+  keys.forEach(k => { const el = document.getElementById(k); if(el) cfg[k] = el.checked; });
+  cfg.configOpen = !document.getElementById('configPanel').classList.contains('hidden');
+  try { localStorage.setItem('phishsim_report_cfg', JSON.stringify(cfg)); } catch(e) {}
+}
+
+function restoreConfig() {
+  try {
+    const cfg = JSON.parse(localStorage.getItem('phishsim_report_cfg') || '{}');
+    ['cfg_cover','cfg_summary','cfg_targets','cfg_email','cfg_reporters','cfg_compromised'].forEach(k => {
+      const el = document.getElementById(k);
+      if (el && cfg[k] !== undefined) { el.checked = cfg[k]; updateToggle(el); }
+    });
+    if (cfg.configOpen) {
+      document.getElementById('configPanel').classList.remove('hidden');
+      document.getElementById('configChevron').style.transform = 'rotate(180deg)';
+    }
+  } catch(e) {}
+}
+</script>
+{% endblock %}

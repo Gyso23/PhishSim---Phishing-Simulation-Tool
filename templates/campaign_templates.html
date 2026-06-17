@@ -1,0 +1,557 @@
+{% extends "base.html" %}
+
+{% block title %}Email Templates{% endblock %}
+
+{% block content %}
+<!-- Monaco Editor CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
+
+<div class="space-y-6 animate-fade-in">
+  <!-- Header -->
+  <div class="flex flex-wrap justify-between items-center gap-4">
+    <div>
+      <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100">Email Templates</h1>
+      <p class="text-slate-500 dark:text-slate-400">Manage reusable email templates for your campaigns</p>
+    </div>
+    <div class="flex gap-3">
+      <button onclick="showCreateModal()" class="flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium shadow-lg shadow-emerald-900/20 transition-all btn-hover">
+        <i class="fas fa-plus mr-2"></i> New Template
+      </button>
+    </div>
+  </div>
+
+  <!-- Search and Filter -->
+  <div class="flex flex-wrap gap-4 items-center">
+    <div class="flex-1 min-w-[200px]">
+      <input type="text" id="searchTemplates" placeholder="Search templates..." 
+        class="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 input-focus"
+        oninput="filterTemplates()">
+    </div>
+    <select id="tagFilter" class="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 input-focus" onchange="filterTemplates()">
+      <option value="" class="bg-white dark:bg-slate-900">All Tags</option>
+      <!-- Tags populated by JS -->
+    </select>
+  </div>
+
+  <!-- Templates Grid -->
+  <div id="templatesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+
+  <!-- Empty State -->
+  <div id="emptyState" class="hidden text-center py-16 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+    <i class="fas fa-file-code text-6xl text-slate-300 dark:text-slate-600 mb-4"></i>
+    <h3 class="text-xl font-semibold text-slate-700 dark:text-slate-300 mb-2">No Templates Yet</h3>
+    <p class="text-slate-500 dark:text-slate-500 mb-6">Create your first email template to get started</p>
+    <button onclick="showCreateModal()" class="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium btn-hover">
+      <i class="fas fa-plus mr-2"></i> Create Template
+    </button>
+  </div>
+
+  <!-- Loading State -->
+  <div id="loadingState" class="text-center py-16">
+    <i class="fas fa-spinner fa-spin text-4xl text-primary mb-4"></i>
+    <p class="text-slate-500 dark:text-slate-400">Loading templates...</p>
+  </div>
+</div>
+
+<!-- Editor Modal -->
+<div id="editorModal" class="fixed inset-0 bg-black/80 hidden z-50 backdrop-blur-sm flex flex-col animate-fade-in">
+  <!-- Toolbar -->
+  <div class="bg-slate-900 border-b border-slate-700 p-4 flex justify-between items-center">
+    <div class="flex items-center gap-4">
+      <h3 id="editorTitle" class="text-lg font-bold text-white">Edit Template</h3>
+      <div class="h-6 w-px bg-slate-700"></div>
+      <div class="flex gap-2">
+        <button onclick="formatDoc('bold')" class="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded" title="Bold"><i class="fas fa-bold"></i></button>
+        <button onclick="formatDoc('italic')" class="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded" title="Italic"><i class="fas fa-italic"></i></button>
+        <button onclick="formatDoc('link')" class="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded" title="Link"><i class="fas fa-link"></i></button>
+        <button onclick="insertVariable('first_name')" class="px-2 py-1 text-xs bg-slate-800 text-slate-300 hover:text-white rounded border border-slate-700">First Name</button>
+        <button onclick="insertVariable('last_name')" class="px-2 py-1 text-xs bg-slate-800 text-slate-300 hover:text-white rounded border border-slate-700">Last Name</button>
+        <button onclick="insertVariable('link')" class="px-2 py-1 text-xs bg-blue-900/50 text-blue-300 hover:text-white rounded border border-blue-800">Phishing Link</button>
+        <button onclick="insertVariable('tracking_pixel')" class="px-2 py-1 text-xs bg-purple-900/50 text-purple-300 hover:text-white rounded border border-purple-800">Tracking Pixel</button>
+      </div>
+    </div>
+    <div class="flex gap-3">
+      <button onclick="closeEditorModal()" class="px-4 py-2 text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors">Cancel</button>
+      <button onclick="saveTemplate()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium shadow-lg shadow-emerald-900/20 transition-all">Save Template</button>
+    </div>
+  </div>
+
+  <!-- Main Editor Area -->
+  <div class="flex-1 flex overflow-hidden">
+    <!-- Settings Sidebar -->
+    <div class="w-80 bg-slate-900 border-r border-slate-700 p-6 overflow-y-auto">
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1">Template Name</label>
+          <input type="text" id="templateName" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-blue-500 text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1">Email Subject</label>
+          <input type="text" id="templateSubject" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-blue-500 text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1">Tags (comma separated)</label>
+          <input type="text" id="templateTags" placeholder="e.g. urgent, hr, microsoft" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-blue-500 text-sm">
+        </div>
+        <input type="hidden" id="templateId">
+      </div>
+    </div>
+
+    <!-- Code Editor -->
+    <div class="flex-1 flex flex-col bg-[#1e1e1e]">
+      <div id="monacoContainer" class="flex-1"></div>
+    </div>
+
+    <!-- Live Preview -->
+    <div class="flex-1 bg-white border-l border-slate-200 flex flex-col">
+      <div class="p-2 bg-slate-50 border-b border-slate-200 text-xs font-medium text-slate-500 flex justify-between items-center">
+        <span>Live Preview</span>
+        <span class="text-[10px] bg-slate-200 px-2 py-0.5 rounded">Desktop</span>
+      </div>
+      <div class="flex-1 relative bg-white">
+        <iframe id="previewFrame" class="w-full h-full border-0"></iframe>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Preview Modal (Read Only) -->
+<div id="previewModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 backdrop-blur-sm">
+  <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-4xl mx-4 overflow-hidden animate-scale-in h-[80vh] flex flex-col">
+    <div class="p-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-900">
+      <div>
+        <h3 id="previewTitle" class="text-lg font-bold text-slate-900 dark:text-white">Template Preview</h3>
+        <p id="previewSubject" class="text-sm text-slate-500 dark:text-slate-400"></p>
+      </div>
+      <button onclick="closePreviewModal()" class="text-slate-400 hover:text-slate-500 dark:hover:text-slate-300">
+        <i class="fas fa-times text-xl"></i>
+      </button>
+    </div>
+    <div class="flex-1 bg-white relative">
+      <iframe id="readOnlyPreviewFrame" class="w-full h-full border-0"></iframe>
+    </div>
+  </div>
+</div>
+
+<style>
+  .template-card { transition: all 0.2s; }
+  .template-card:hover { transform: translateY(-2px); box-shadow: 0 10px 40px rgba(0,0,0,0.3); }
+  .thumbnail-container { position: relative; height: 180px; overflow: hidden; background: white; }
+  .thumbnail-container iframe { position: absolute; top: 0; left: 0; width: 200%; height: 200%; transform: scale(0.5); transform-origin: top left; pointer-events: none; border: 0; }
+  .thumbnail-overlay { position: absolute; inset: 0; background: linear-gradient(to bottom, transparent 60%, rgba(0,0,0,0.1)); cursor: pointer; }
+  .tag-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; background: rgba(59, 130, 246, 0.1); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.2); margin-right: 4px; }
+  .highlighted-line { background-color: rgba(59, 130, 246, 0.3) !important; }
+</style>
+
+<script>
+let monacoEditor = null;
+let allTemplates = [];
+
+require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' }});
+
+document.addEventListener('DOMContentLoaded', loadTemplates);
+
+async function loadTemplates() {
+  try {
+    const response = await fetch('/templates/list', {
+      headers: { 'Accept': 'application/json' }
+    });
+    allTemplates = await response.json();
+    populateTags();
+    renderTemplates(allTemplates);
+  } catch(err) {
+    console.error('Error loading templates:', err);
+    document.getElementById('loadingState').innerHTML = '<p class="text-red-400">Failed to load templates</p>';
+  }
+}
+
+function populateTags() {
+    const tags = new Set();
+    allTemplates.forEach(t => {
+        if (t.tags) {
+            t.tags.split(',').forEach(tag => tags.add(tag.trim()));
+        }
+    });
+    const select = document.getElementById('tagFilter');
+    // Keep first option
+    while (select.options.length > 1) select.remove(1);
+    
+    Array.from(tags).sort().forEach(tag => {
+        const opt = document.createElement('option');
+        opt.value = tag;
+        opt.textContent = tag;
+        opt.className = "bg-white dark:bg-slate-900";
+        select.appendChild(opt);
+    });
+}
+
+function renderTemplates(templates) {
+  const grid = document.getElementById('templatesGrid');
+  const loading = document.getElementById('loadingState');
+  const empty = document.getElementById('emptyState');
+  
+  loading.classList.add('hidden');
+  
+  if (templates.length === 0) {
+    grid.innerHTML = '';
+    empty.classList.remove('hidden');
+    return;
+  }
+  
+  empty.classList.add('hidden');
+  
+  grid.innerHTML = templates.map(function(t) {
+    var dateStr = t.updated_at ? new Date(t.updated_at).toLocaleDateString() : 'Unknown';
+    var tagsHtml = t.tags ? t.tags.split(',').map(tag => `<span class="tag-badge">${escapeHtml(tag.trim())}</span>`).join('') : '';
+    
+    return '<div class="template-card glass-card rounded-xl border border-white/10 overflow-hidden group">' +
+      '<div class="thumbnail-container">' +
+        '<iframe srcdoc="' + escapeHtml(t.html_content || '<div style=\"padding:40px;color:#999;text-align:center;\">No content</div>') + '" sandbox="allow-same-origin"></iframe>' +
+        '<div class="thumbnail-overlay opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">' +
+          '<button onclick="editTemplate(' + t.id + ')" class="px-4 py-2 bg-black/50 hover:bg-black/70 backdrop-blur text-white rounded-lg text-sm font-medium transition-colors"><i class="fas fa-code mr-2"></i>Open Editor</button>' +
+          '<button onclick="previewTemplate(' + t.id + ')" class="px-4 py-2 bg-black/50 hover:bg-black/70 backdrop-blur text-white rounded-lg text-sm font-medium transition-colors"><i class="fas fa-eye mr-2"></i>Preview</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="p-4">' +
+        '<div class="flex items-center gap-2 mb-2">' +
+          '<h3 class="font-semibold text-slate-900 dark:text-slate-100 truncate flex-1">' + escapeHtml(t.name) + '</h3>' +
+        '</div>' +
+        '<div class="mb-2 text-xs text-slate-500 truncate">' + escapeHtml(t.subject || '(No subject)') + '</div>' +
+        '<div class="mb-3 flex flex-wrap gap-1">' + tagsHtml + '</div>' +
+        '<p class="text-xs text-slate-600 dark:text-slate-500 mb-3">Updated: ' + dateStr + '</p>' +
+        '<div class="flex gap-2">' +
+          '<button onclick="editTemplate(' + t.id + ')" class="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium transition-colors btn-hover"><i class="fas fa-edit mr-1"></i> Edit</button>' +
+          '<button onclick="duplicateTemplate(' + t.id + ')" class="px-3 py-2 bg-slate-200 dark:bg-white/5 hover:bg-slate-300 dark:hover:bg-white/10 text-slate-700 dark:text-white rounded-lg text-sm transition-colors border border-slate-300 dark:border-white/10 btn-hover" title="Duplicate"><i class="fas fa-copy"></i></button>' +
+          '<button onclick="deleteTemplate(' + t.id + ')" class="px-3 py-2 bg-red-600/20 hover:bg-red-600 text-red-600 dark:text-red-400 hover:text-white rounded-lg text-sm transition-colors btn-hover" title="Delete"><i class="fas fa-trash"></i></button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function filterTemplates() {
+  const search = document.getElementById('searchTemplates').value.toLowerCase();
+  const tag = document.getElementById('tagFilter').value;
+  
+  const filtered = allTemplates.filter(function(t) {
+    const matchSearch = !search || (t.name && t.name.toLowerCase().includes(search)) || (t.subject && t.subject.toLowerCase().includes(search));
+    const matchTag = !tag || (t.tags && t.tags.includes(tag));
+    return matchSearch && matchTag;
+  });
+  
+  renderTemplates(filtered);
+}
+
+function showCreateModal() {
+  document.getElementById('templateId').value = '';
+  document.getElementById('templateName').value = '';
+  document.getElementById('templateSubject').value = '';
+  document.getElementById('templateTags').value = '';
+  document.getElementById('editorTitle').textContent = 'New Template';
+  
+  openEditorModal();
+  
+  setTimeout(function() {
+    if (monacoEditor) {
+      monacoEditor.setValue('<html>\n<body>\n  <p>Hello {{first_name}},</p>\n  <p>This is a test email.</p>\n  <p><a href="{{link}}">Click here</a></p>\n</body>\n</html>');
+      updatePreview();
+    }
+  }, 300);
+}
+
+function openEditorModal() {
+  document.getElementById('editorModal').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+  
+  if (!monacoEditor) {
+    require(['vs/editor/editor.main'], function() {
+      monacoEditor = monaco.editor.create(document.getElementById('monacoContainer'), {
+        value: '',
+        language: 'html',
+        theme: 'vs-dark',
+        fontSize: 14,
+        minimap: { enabled: false },
+        wordWrap: 'on',
+        lineNumbers: 'on',
+        automaticLayout: true,
+        scrollBeyondLastLine: false,
+        tabSize: 2
+      });
+      
+      monacoEditor.onDidChangeModelContent(function() {
+        updatePreview();
+      });
+    });
+  }
+}
+
+function closeEditorModal() {
+  document.getElementById('editorModal').classList.add('hidden');
+  document.body.style.overflow = '';
+}
+
+function updatePreview() {
+  if (!monacoEditor) return;
+  
+  var html = monacoEditor.getValue();
+  // Mock variables for preview
+  html = html.replace(/\{\{first_name\}\}/g, 'John');
+  html = html.replace(/\{\{last_name\}\}/g, 'Doe');
+  html = html.replace(/\{\{email\}\}/g, 'john.doe@example.com');
+  html = html.replace(/\{\{link\}\}/g, '#');
+  html = html.replace(/\{\{tracking_pixel\}\}/g, '<!-- tracking pixel -->');
+  
+  var frame = document.getElementById('previewFrame');
+  frame.srcdoc = html;
+
+  // Add click-to-highlight after iframe loads
+  frame.onload = function() {
+    try {
+      var doc = frame.contentDocument || frame.contentWindow.document;
+      doc.body.style.cursor = 'pointer';
+      
+      // Add hover effect styles
+      var style = doc.createElement('style');
+      style.textContent = '[data-clickable]:hover { outline: 2px dashed #3b82f6 !important; outline-offset: 2px; }';
+      doc.head.appendChild(style);
+      
+      // Mark all elements as clickable
+      var elements = doc.body.querySelectorAll('*');
+      elements.forEach(function(el) {
+        el.setAttribute('data-clickable', 'true');
+        el.addEventListener('click', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          highlightElementInEditor(el);
+        });
+      });
+    } catch(err) {
+      console.log('Could not attach click handlers to preview:', err);
+    }
+  };
+}
+
+async function editTemplate(id) {
+  try {
+    const response = await fetch('/templates/' + id);
+    const t = await response.json();
+    
+    document.getElementById('templateId').value = t.id;
+    document.getElementById('templateName').value = t.name || '';
+    document.getElementById('templateSubject').value = t.subject || '';
+    document.getElementById('templateTags').value = t.tags || '';
+    document.getElementById('editorTitle').textContent = 'Edit Template';
+    
+    openEditorModal();
+    
+    setTimeout(function() {
+      if (monacoEditor) {
+        monacoEditor.setValue(t.html_content || '');
+        updatePreview();
+      }
+    }, 300);
+  } catch(err) {
+    alert('Error loading template: ' + err);
+  }
+}
+
+async function saveTemplate() {
+  const id = document.getElementById('templateId').value;
+  const data = {
+    name: document.getElementById('templateName').value,
+    subject: document.getElementById('templateSubject').value,
+    tags: document.getElementById('templateTags').value,
+    html_content: monacoEditor.getValue()
+  };
+  
+  const url = id ? `/templates/${id}` : '/templates';
+  const method = id ? 'PUT' : 'POST';
+  
+  try {
+    const resp = await fetch(url, {
+      method: method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    
+    if (resp.ok) {
+      closeEditorModal();
+      loadTemplates();
+      toastSuccess('Template saved successfully');
+    } else {
+      const err = await resp.json();
+      toastError('Error saving template: ' + (err.error || 'Unknown error'));
+    }
+  } catch (e) {
+    toastError('Error saving template: ' + e);
+  }
+}
+
+async function duplicateTemplate(id) {
+  try {
+    const response = await fetch('/templates/' + id + '/duplicate', { method: 'POST' });
+    if (response.ok) { 
+        loadTemplates();
+        toastSuccess('Template duplicated');
+    } else {
+        toastError('Failed to duplicate template');
+    }
+  } catch(err) {
+    toastError('Error: ' + err);
+  }
+}
+
+async function deleteTemplate(id) {
+  const confirmed = await showConfirm('Are you sure you want to delete this template?', {
+    title: 'Delete Template',
+    okText: 'Delete',
+    cancelText: 'Cancel'
+  });
+  if (!confirmed) return;
+
+  try {
+    const response = await fetch('/templates/' + id, { method: 'DELETE' });
+    if (response.ok) { 
+        loadTemplates();
+        toastSuccess('Template deleted');
+    } else {
+        toastError('Failed to delete template');
+    }
+  } catch(err) {
+    toastError('Error: ' + err);
+  }
+}
+
+function insertVariable(varName) {
+  if (!monacoEditor) return;
+  const selection = monacoEditor.getSelection();
+  monacoEditor.executeEdits('', [{ range: selection, text: '{{' + varName + '}}' }]);
+  monacoEditor.focus();
+}
+
+async function formatDoc(cmd) {
+  if (!monacoEditor) return;
+  var sel = monacoEditor.getSelection();
+  var selectedText = monacoEditor.getModel().getValueInRange(sel);
+  var newText = selectedText;
+
+  if (cmd === 'bold') newText = '<strong>' + selectedText + '</strong>';
+  else if (cmd === 'italic') newText = '<em>' + selectedText + '</em>';
+  else if (cmd === 'link') {
+    var url = await showPrompt('Enter URL:', 'https://');
+    if (url) newText = '<a href="' + url + '">' + (selectedText || 'Link text') + '</a>';
+  }
+
+  monacoEditor.executeEdits('', [{ range: sel, text: newText }]);
+  monacoEditor.focus();
+}
+
+function highlightElementInEditor(element) {
+  if (!monacoEditor) return;
+  
+  // Get the outer HTML of clicked element
+  var tagName = element.tagName.toLowerCase();
+  
+  // Build a search pattern based on the element
+  var searchText = '';
+  
+  // Try to find by id first
+  if (element.id) {
+    searchText = 'id="' + element.id + '"';
+  } 
+  // Then by class
+  else if (element.className && typeof element.className === 'string' && element.className.trim()) {
+    var firstClass = element.className.split(' ')[0];
+    searchText = 'class="' + firstClass;
+  }
+  // Then by tag with content
+  else if (element.textContent && element.textContent.trim().length > 0 && element.textContent.trim().length < 50) {
+    var text = element.textContent.trim().substring(0, 30);
+    searchText = text;
+  }
+  // Fallback to tag name with attributes
+  else {
+    searchText = '<' + tagName;
+  }
+  
+  // Find in editor
+  var model = monacoEditor.getModel();
+  var matches = model.findMatches(searchText, false, false, false, null, false);
+  
+  if (matches.length > 0) {
+    var match = matches[0];
+    
+    // Find the full tag/element range
+    var startLine = match.range.startLineNumber;
+    var endLine = startLine;
+    
+    // Look for closing tag or end of self-closing tag
+    var lineCount = model.getLineCount();
+    var closingTag = '</' + tagName + '>';
+    
+    for (var i = startLine; i <= Math.min(startLine + 50, lineCount); i++) {
+      var lineContent = model.getLineContent(i);
+      if (lineContent.includes(closingTag)) {
+        endLine = i;
+        break;
+      }
+      if (lineContent.includes('/>') && i === startLine) {
+        endLine = i;
+        break;
+      }
+      endLine = i;
+    }
+    
+    // Select the range
+    var range = new monaco.Range(startLine, 1, endLine, model.getLineMaxColumn(endLine));
+    monacoEditor.setSelection(range);
+    monacoEditor.revealLineInCenter(startLine);
+    
+    // Flash highlight effect
+    var decorations = monacoEditor.deltaDecorations([], [{
+      range: range,
+      options: { 
+        className: 'highlighted-line',
+        isWholeLine: true
+      }
+    }]);
+    
+    setTimeout(function() {
+      monacoEditor.deltaDecorations(decorations, []);
+    }, 1500);
+  }
+  
+  monacoEditor.focus();
+}
+
+// Preview Modal Logic
+function previewTemplate(id) {
+    const t = allTemplates.find(x => x.id === id);
+    if (!t) return;
+    
+    document.getElementById('previewTitle').textContent = t.name;
+    document.getElementById('previewSubject').textContent = 'Subject: ' + (t.subject || '(No subject)');
+    
+    const frame = document.getElementById('readOnlyPreviewFrame');
+    frame.srcdoc = t.html_content || '<div style="padding: 20px; font-family: sans-serif; color: #666;">No content</div>';
+    
+    document.getElementById('previewModal').classList.remove('hidden');
+    document.getElementById('previewModal').classList.add('flex');
+}
+
+function closePreviewModal() {
+  document.getElementById('previewModal').classList.add('hidden');
+  document.getElementById('previewModal').classList.remove('flex');
+}
+
+document.getElementById('previewModal').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('previewModal')) closePreviewModal();
+});
+
+</script>
+{% endblock %}

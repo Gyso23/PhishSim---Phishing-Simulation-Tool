@@ -1,0 +1,1162 @@
+{% extends "base.html" %}
+
+{% block title %}Advanced Template Editor - PhishSim{% endblock %}
+
+{% block container_class %}h-full w-full p-0{% endblock %}
+
+{% block sidebar %}{% endblock %}
+
+{% block content %}
+<!-- Monaco Editor CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
+
+<div class="h-screen flex flex-col bg-white dark:bg-slate-900 overflow-hidden">
+  <!-- Top Toolbar -->
+  <div class="h-14 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between px-4 shrink-0 z-20">
+    <div class="flex items-center gap-4">
+      <a href="{{ url_for('templates_page') }}" class="text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors">
+        <i class="fas fa-arrow-left"></i>
+      </a>
+      <div class="h-6 w-px bg-slate-200 dark:bg-slate-700"></div>
+      <div class="flex items-center gap-2">
+        <input type="text" id="templateName" value="{{ template_name or '' }}" placeholder="Template Name" 
+          class="bg-transparent border-none text-slate-900 dark:text-slate-200 font-medium focus:ring-0 placeholder-slate-400 dark:placeholder-slate-500 w-64">
+        <span id="saveStatus" class="text-xs text-slate-500 hidden"><i class="fas fa-check mr-1"></i>Saved</span>
+      </div>
+    </div>
+    
+    <div class="flex items-center gap-3">
+      <div class="flex bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
+        <button onclick="setPreviewMode('desktop')" id="desktopBtn" class="px-3 py-1.5 rounded text-slate-500 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-slate-600 transition-all text-sm active-mode">
+          <i class="fas fa-desktop"></i>
+        </button>
+        <button onclick="setPreviewMode('mobile')" id="mobileBtn" class="px-3 py-1.5 rounded text-slate-500 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-slate-600 transition-all text-sm">
+          <i class="fas fa-mobile-alt"></i>
+        </button>
+      </div>
+      
+      <div class="h-6 w-px bg-slate-200 dark:bg-slate-700"></div>
+      
+      <button onclick="sendTestEmail()" class="px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-lg text-sm font-medium transition-colors">
+        <i class="fas fa-paper-plane mr-2"></i> Send Test
+      </button>
+      <button onclick="saveTemplate()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-medium shadow-lg shadow-emerald-900/20 transition-colors">
+        <i class="fas fa-save mr-2"></i> Save Template
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Editor Area -->
+  <div class="flex-1 flex min-h-0">
+    <!-- Left Sidebar: Variables & Settings -->
+    <div class="w-80 bg-slate-50 dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 flex flex-col shrink-0 z-10">
+      <!-- Subject Line -->
+      <div class="p-4 border-b border-slate-200 dark:border-slate-700">
+        <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Subject Line</label>
+        <div class="relative">
+          <input type="text" id="subject" value="{{ subject }}" placeholder="Enter email subject..." 
+            class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-slate-200 focus:outline-none focus:border-emerald-500 transition-colors">
+          <span class="absolute right-2 top-2.5 text-xs text-slate-400 dark:text-slate-500" id="charCount">0</span>
+        </div>
+      </div>
+
+      <!-- Variables Panel -->
+      <div class="flex-1 overflow-y-auto custom-scrollbar">
+        <div class="p-4 space-y-6">
+          <!-- User Variables -->
+          <div>
+            <h3 class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3 flex items-center">
+              <i class="fas fa-user mr-2"></i> User Variables
+            </h3>
+            <div class="space-y-2">
+              <div class="variable-item group cursor-grab active:cursor-grabbing bg-white dark:bg-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600/50 hover:border-slate-300 dark:hover:border-slate-500 rounded-lg p-2 transition-all" 
+                   draggable="true" 
+                   ondragstart="handleDragStart(event, '{{FirstName}}')"
+                   onclick="insertVariable('{{FirstName}}')">
+                <div class="flex justify-between items-center">
+                  <code class="text-xs text-emerald-600 dark:text-emerald-400 font-mono">{{FirstName}}</code>
+                  <span class="text-xs text-slate-500 dark:text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-300">John</span>
+                </div>
+                <div class="text-xs text-slate-400 dark:text-slate-500 mt-1">Recipient's first name</div>
+              </div>
+              <div class="variable-item group cursor-grab active:cursor-grabbing bg-white dark:bg-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600/50 hover:border-slate-300 dark:hover:border-slate-500 rounded-lg p-2 transition-all" 
+                   draggable="true" 
+                   ondragstart="handleDragStart(event, '{{LastName}}')"
+                   onclick="insertVariable('{{LastName}}')">
+                <div class="flex justify-between items-center">
+                  <code class="text-xs text-emerald-600 dark:text-emerald-400 font-mono">{{LastName}}</code>
+                  <span class="text-xs text-slate-500 dark:text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-300">Doe</span>
+                </div>
+                <div class="text-xs text-slate-400 dark:text-slate-500 mt-1">Recipient's last name</div>
+              </div>
+              <div class="variable-item group cursor-grab active:cursor-grabbing bg-white dark:bg-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600/50 hover:border-slate-300 dark:hover:border-slate-500 rounded-lg p-2 transition-all" 
+                   draggable="true" 
+                   ondragstart="handleDragStart(event, '{{Email}}')"
+                   onclick="insertVariable('{{Email}}')">
+                <div class="flex justify-between items-center">
+                  <code class="text-xs text-emerald-600 dark:text-emerald-400 font-mono">{{Email}}</code>
+                  <span class="text-xs text-slate-500 dark:text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-300">user@co.com</span>
+                </div>
+                <div class="text-xs text-slate-400 dark:text-slate-500 mt-1">Recipient's email</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tracking Variables -->
+          <div>
+            <h3 class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3 flex items-center">
+              <i class="fas fa-bullseye mr-2"></i> Tracking
+            </h3>
+            <div class="space-y-2">
+              <button onclick="insertTrackedLink()" class="w-full text-left group cursor-pointer bg-white dark:bg-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600/50 hover:border-slate-300 dark:hover:border-slate-500 rounded-lg p-2 transition-all">
+                <div class="flex justify-between items-center">
+                  <span class="text-sm text-slate-700 dark:text-slate-200 font-medium"><i class="fas fa-link text-pink-500 dark:text-pink-400 mr-2"></i>Insert Tracking Link</span>
+                  <i class="fas fa-plus text-xs text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-white"></i>
+                </div>
+                <div class="text-xs text-slate-400 dark:text-slate-500 mt-1">Creates a clickable link that tracks clicks</div>
+              </button>
+              
+              <button onclick="insertButton()" class="w-full text-left group cursor-pointer bg-white dark:bg-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600/50 hover:border-slate-300 dark:hover:border-slate-500 rounded-lg p-2 transition-all">
+                <div class="flex justify-between items-center">
+                  <span class="text-sm text-slate-700 dark:text-slate-200 font-medium"><i class="fas fa-square text-purple-500 dark:text-purple-400 mr-2"></i>Insert Button</span>
+                  <i class="fas fa-plus text-xs text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-white"></i>
+                </div>
+                <div class="text-xs text-slate-400 dark:text-slate-500 mt-1">Adds a professional CTA button</div>
+              </button>
+
+              <button onclick="insertTrackingPixel()" class="w-full text-left group cursor-pointer bg-white dark:bg-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600/50 hover:border-slate-300 dark:hover:border-slate-500 rounded-lg p-2 transition-all">
+                <div class="flex justify-between items-center">
+                  <span class="text-sm text-slate-700 dark:text-slate-200 font-medium"><i class="fas fa-eye text-blue-500 dark:text-blue-400 mr-2"></i>Tracking Pixel</span>
+                  <i class="fas fa-plus text-xs text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-white"></i>
+                </div>
+                <div class="text-xs text-slate-400 dark:text-slate-500 mt-1">Invisible pixel to track opens</div>
+              </button>
+            </div>
+          </div>
+
+          <!-- Assets -->
+          <div>
+            <h3 class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3 flex items-center">
+              <i class="fas fa-images mr-2"></i> Assets
+            </h3>
+            <div class="space-y-2">
+              <button onclick="insertEmbeddedImage()" class="w-full text-left group cursor-pointer bg-white dark:bg-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600/50 hover:border-slate-300 dark:hover:border-slate-500 rounded-lg p-2 transition-all">
+                <div class="flex justify-between items-center">
+                  <span class="text-sm text-slate-700 dark:text-slate-200 font-medium"><i class="fas fa-image text-indigo-500 dark:text-indigo-400 mr-2"></i>Embedded Image</span>
+                  <i class="fas fa-plus text-xs text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-white"></i>
+                </div>
+                <div class="text-xs text-slate-400 dark:text-slate-500 mt-1">Bypasses Outlook image blocking</div>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center: Monaco Editor with Custom Toolbar + Right Preview Column (50/50) -->
+    <div class="flex-1 flex min-h-0 bg-white dark:bg-slate-900 relative">
+      <!-- Editor Column -->
+      <div class="flex-1 flex flex-col min-w-0">
+      <!-- Custom HTML Toolbar (SunEditor-like controls) -->
+      <div id="editorToolbar" class="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 p-1 flex flex-wrap gap-1 items-center">
+        <!-- History -->
+        <div class="flex gap-0.5 border-r border-slate-200 dark:border-slate-700 pr-2 mr-1">
+          <button onclick="toolbarAction('undo')" class="toolbar-btn" title="Undo (Ctrl+Z)">
+            <i class="fas fa-undo"></i>
+          </button>
+          <button onclick="toolbarAction('redo')" class="toolbar-btn" title="Redo (Ctrl+Y)">
+            <i class="fas fa-redo"></i>
+          </button>
+        </div>
+        
+        <!-- Text Formatting -->
+        <div class="flex gap-0.5 border-r border-slate-200 dark:border-slate-700 pr-2 mr-1">
+          <button onclick="wrapSelection('b')" class="toolbar-btn" title="Bold (Ctrl+B)">
+            <i class="fas fa-bold"></i>
+          </button>
+          <button onclick="wrapSelection('i')" class="toolbar-btn" title="Italic (Ctrl+I)">
+            <i class="fas fa-italic"></i>
+          </button>
+          <button onclick="wrapSelection('u')" class="toolbar-btn" title="Underline (Ctrl+U)">
+            <i class="fas fa-underline"></i>
+          </button>
+          <button onclick="wrapSelection('s')" class="toolbar-btn" title="Strikethrough">
+            <i class="fas fa-strikethrough"></i>
+          </button>
+        </div>
+        
+        <!-- Font & Color -->
+        <div class="flex gap-0.5 border-r border-slate-200 dark:border-slate-700 pr-2 mr-1">
+          <div class="relative">
+            <button onclick="toggleDropdown('fontDropdown')" class="toolbar-btn" title="Font Family">
+              <i class="fas fa-font"></i>
+              <i class="fas fa-caret-down text-xs ml-1"></i>
+            </button>
+            <div id="fontDropdown" class="toolbar-dropdown hidden">
+              <button onclick="insertFontFamily('Arial, sans-serif')">Arial</button>
+              <button onclick="insertFontFamily('Georgia, serif')">Georgia</button>
+              <button onclick="insertFontFamily('Times New Roman, serif')">Times New Roman</button>
+              <button onclick="insertFontFamily('Courier New, monospace')">Courier New</button>
+              <button onclick="insertFontFamily('Verdana, sans-serif')">Verdana</button>
+              <button onclick="insertFontFamily('Trebuchet MS, sans-serif')">Trebuchet MS</button>
+            </div>
+          </div>
+          <div class="relative">
+            <button onclick="toggleDropdown('fontSizeDropdown')" class="toolbar-btn" title="Font Size">
+              <i class="fas fa-text-height"></i>
+              <i class="fas fa-caret-down text-xs ml-1"></i>
+            </button>
+            <div id="fontSizeDropdown" class="toolbar-dropdown hidden">
+              <button onclick="insertFontSize('10px')">10px</button>
+              <button onclick="insertFontSize('12px')">12px</button>
+              <button onclick="insertFontSize('14px')">14px</button>
+              <button onclick="insertFontSize('16px')">16px</button>
+              <button onclick="insertFontSize('18px')">18px</button>
+              <button onclick="insertFontSize('20px')">20px</button>
+              <button onclick="insertFontSize('24px')">24px</button>
+              <button onclick="insertFontSize('28px')">28px</button>
+              <button onclick="insertFontSize('32px')">32px</button>
+            </div>
+          </div>
+          <div class="relative">
+            <input type="color" id="fontColorPicker" class="hidden" onchange="applyFontColor(this.value)">
+            <button onclick="document.getElementById('fontColorPicker').click()" class="toolbar-btn" title="Font Color">
+              <i class="fas fa-palette"></i>
+            </button>
+          </div>
+          <div class="relative">
+            <input type="color" id="highlightColorPicker" class="hidden" value="#ffff00" onchange="applyHighlightColor(this.value)">
+            <button onclick="document.getElementById('highlightColorPicker').click()" class="toolbar-btn" title="Highlight Color">
+              <i class="fas fa-highlighter"></i>
+            </button>
+          </div>
+        </div>
+        
+        <!-- Remove Format -->
+        <div class="flex gap-0.5 border-r border-slate-200 dark:border-slate-700 pr-2 mr-1">
+          <button onclick="removeFormatting()" class="toolbar-btn" title="Remove Formatting">
+            <i class="fas fa-remove-format"></i>
+          </button>
+        </div>
+        
+        <!-- Indent -->
+        <div class="flex gap-0.5 border-r border-slate-200 dark:border-slate-700 pr-2 mr-1">
+          <button onclick="insertIndent('outdent')" class="toolbar-btn" title="Decrease Indent">
+            <i class="fas fa-outdent"></i>
+          </button>
+          <button onclick="insertIndent('indent')" class="toolbar-btn" title="Increase Indent">
+            <i class="fas fa-indent"></i>
+          </button>
+        </div>
+        
+        <!-- Alignment -->
+        <div class="flex gap-0.5 border-r border-slate-200 dark:border-slate-700 pr-2 mr-1">
+          <button onclick="insertAlign('left')" class="toolbar-btn" title="Align Left">
+            <i class="fas fa-align-left"></i>
+          </button>
+          <button onclick="insertAlign('center')" class="toolbar-btn" title="Align Center">
+            <i class="fas fa-align-center"></i>
+          </button>
+          <button onclick="insertAlign('right')" class="toolbar-btn" title="Align Right">
+            <i class="fas fa-align-right"></i>
+          </button>
+          <button onclick="insertAlign('justify')" class="toolbar-btn" title="Justify">
+            <i class="fas fa-align-justify"></i>
+          </button>
+        </div>
+        
+        <!-- Lists & HR -->
+        <div class="flex gap-0.5 border-r border-slate-200 dark:border-slate-700 pr-2 mr-1">
+          <button onclick="insertList('ul')" class="toolbar-btn" title="Bullet List">
+            <i class="fas fa-list-ul"></i>
+          </button>
+          <button onclick="insertList('ol')" class="toolbar-btn" title="Numbered List">
+            <i class="fas fa-list-ol"></i>
+          </button>
+          <button onclick="insertHorizontalRule()" class="toolbar-btn" title="Horizontal Rule">
+            <i class="fas fa-minus"></i>
+          </button>
+        </div>
+        
+        <!-- Insert Elements -->
+        <div class="flex gap-0.5 border-r border-slate-200 dark:border-slate-700 pr-2 mr-1">
+          <button onclick="insertTable()" class="toolbar-btn" title="Insert Table">
+            <i class="fas fa-table"></i>
+          </button>
+          <button onclick="insertLink()" class="toolbar-btn" title="Insert Link">
+            <i class="fas fa-link"></i>
+          </button>
+          <button onclick="insertImage()" class="toolbar-btn" title="Insert Image">
+            <i class="fas fa-image"></i>
+          </button>
+        </div>
+        
+        <!-- View Options -->
+        <div class="flex gap-0.5">
+          <button onclick="toggleFullscreen()" class="toolbar-btn" title="Fullscreen">
+            <i class="fas fa-expand"></i>
+          </button>
+          <button onclick="toggleShowBlocks()" class="toolbar-btn" title="Show Blocks">
+            <i class="fas fa-th-large"></i>
+          </button>
+          <button onclick="formatCode()" class="toolbar-btn" title="Format Code">
+            <i class="fas fa-magic"></i>
+          </button>
+        </div>
+      </div>
+      
+      <!-- Monaco Editor -->
+      <div class="flex-1 relative">
+        <div id="monaco-editor" class="absolute inset-0"></div>
+      </div>
+      </div>
+
+      <!-- Right Preview Column (visible by default) -->
+      <div id="livePreviewColumn" class="w-1/2 border-l border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 flex flex-col">
+        <div class="h-12 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between px-4 shrink-0">
+          <div class="flex items-center gap-4">
+            <span class="text-xs font-semibold text-slate-500 dark:text-slate-300 uppercase tracking-wider"><i class="fas fa-eye mr-2"></i>Live Preview</span>
+            <div class="flex bg-slate-200 dark:bg-slate-700 rounded p-0.5">
+              <button onclick="setLivePreviewMode('desktop')" id="liveDesktopBtn" class="px-2 py-1 rounded text-xs bg-white dark:bg-slate-600 text-slate-900 dark:text-white shadow-sm">Desktop</button>
+              <button onclick="setLivePreviewMode('mobile')" id="liveMobileBtn" class="px-2 py-1 rounded text-xs text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">Mobile</button>
+            </div>
+          </div>
+          <button onclick="toggleLivePreview()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <div class="flex-1 overflow-auto bg-white">
+          <iframe id="livePreviewFrame" class="w-full h-full" style="min-height: 600px;"></iframe>
+        </div>
+      </div>
+    </div>
+</div>
+
+<!-- Hidden Inputs -->
+<input type="hidden" id="templateId" value="{{ template_id or '' }}">
+<textarea id="html_content" name="html_content" class="hidden">{{ html_content|safe }}</textarea>
+
+<style>
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: #f1f5f9;
+  }
+  .dark .custom-scrollbar::-webkit-scrollbar-track {
+    background: #1e293b;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+  }
+  .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #475569;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+  .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+  }
+  
+  .active-mode {
+    background-color: #cbd5e1 !important;
+    color: #0f172a !important;
+  }
+  .dark .active-mode {
+    background-color: #475569 !important;
+    color: white !important;
+  }
+  
+  /* Custom Toolbar Styles */
+  .toolbar-btn {
+    padding: 6px 10px;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    color: #64748b; /* slate-500 */
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .dark .toolbar-btn {
+    color: #cbd5e1; /* slate-300 */
+  }
+  
+  .toolbar-btn:hover {
+    background: #e2e8f0; /* slate-200 */
+    color: #0f172a; /* slate-900 */
+  }
+  .dark .toolbar-btn:hover {
+    background: #334155; /* slate-700 */
+    color: white;
+  }
+  
+  .toolbar-btn.active {
+    background: #cbd5e1;
+    color: #0f172a;
+  }
+  .dark .toolbar-btn.active {
+    background: #475569;
+    color: white;
+  }
+  
+  /* Dropdown Styles */
+  .toolbar-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    min-width: 150px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    z-index: 100;
+    overflow: hidden;
+  }
+  .dark .toolbar-dropdown {
+    background: #1e293b;
+    border: 1px solid #475569;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+  }
+  
+  .toolbar-dropdown button {
+    display: block;
+    width: 100%;
+    padding: 8px 12px;
+    text-align: left;
+    background: transparent;
+    border: none;
+    color: #334155;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .dark .toolbar-dropdown button {
+    color: #e2e8f0;
+  }
+  
+  .toolbar-dropdown button:hover {
+    background: #f1f5f9;
+  }
+  .dark .toolbar-dropdown button:hover {
+    background: #334155;
+  }
+</style>
+
+<script>
+// State - declare globally
+let editor; // Monaco
+// Show preview by default in the side-by-side layout
+let isLivePreviewOpen = true;
+let livePreviewMode = 'desktop';
+let htmlEditor, subjectInput, templateNameInput, templateIdInput;
+
+// Wait for DOM to be ready
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize DOM references
+    htmlEditor = document.getElementById('html_content');
+    subjectInput = document.getElementById('subject');
+    templateNameInput = document.getElementById('templateName');
+    templateIdInput = document.getElementById('templateId');
+    
+    // Add subject character count listener
+    if (subjectInput) {
+        subjectInput.addEventListener('input', updateCharCount);
+        updateCharCount();
+    }
+    
+    initializeMonaco();
+    
+    // Close dropdowns when clicking elsewhere
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.toolbar-dropdown') && !e.target.closest('.toolbar-btn')) {
+            closeAllDropdowns();
+        }
+    });
+});
+
+// Initialize Monaco Editor
+function initializeMonaco() {
+    require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' }});
+
+    require(['vs/editor/editor.main'], function() {
+        const currentTheme = document.documentElement.classList.contains('dark') ? 'vs-dark' : 'vs';
+        const initialValue = htmlEditor ? htmlEditor.value : getDefaultTemplate();
+        
+        editor = monaco.editor.create(document.getElementById('monaco-editor'), {
+            value: initialValue,
+            language: 'html',
+            theme: currentTheme,
+            automaticLayout: true,
+            minimap: { enabled: false },
+            fontSize: 14,
+            padding: { top: 16, bottom: 16 },
+            wordWrap: 'on',
+            formatOnPaste: true,
+            formatOnType: true,
+            lineNumbers: 'on',
+            scrollBeyondLastLine: false
+        });
+
+        // Sync to hidden textarea on change
+        editor.onDidChangeModelContent(() => {
+            if (htmlEditor) htmlEditor.value = editor.getValue();
+            if (isLivePreviewOpen) updateLivePreview();
+        });
+        
+        // Update cursor position display
+        editor.onDidChangeCursorPosition((e) => {
+            document.getElementById('cursorPos').textContent = `Line ${e.position.lineNumber}, Col ${e.position.column}`;
+        });
+        
+        // Keyboard shortcuts for formatting
+        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyB, () => wrapSelection('b'));
+        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI, () => wrapSelection('i'));
+        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyU, () => wrapSelection('u'));
+    });
+}
+
+function getDefaultTemplate() {
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #333; margin: 0; padding: 20px; }
+    </style>
+</head>
+<body>
+    <p>Start typing your email here...</p>
+</body>
+</html>`;
+}
+
+// Dropdown Management
+function toggleDropdown(id) {
+    closeAllDropdowns();
+    document.getElementById(id).classList.toggle('hidden');
+}
+
+function closeAllDropdowns() {
+    document.querySelectorAll('.toolbar-dropdown').forEach(d => d.classList.add('hidden'));
+}
+
+// Toolbar Actions
+function toolbarAction(action) {
+    if (!editor) return;
+    
+    if (action === 'undo') {
+        editor.trigger('keyboard', 'undo');
+    } else if (action === 'redo') {
+        editor.trigger('keyboard', 'redo');
+    }
+    editor.focus();
+}
+
+// Insert text at cursor position in Monaco
+function insertAtCursor(text) {
+    if (!editor) return;
+    const pos = editor.getPosition();
+    editor.executeEdits('', [{
+        range: new monaco.Range(pos.lineNumber, pos.column, pos.lineNumber, pos.column),
+        text: text,
+        forceMoveMarkers: true
+    }]);
+    editor.focus();
+}
+
+// Wrap selected text with HTML tag
+function wrapSelection(tag) {
+    if (!editor) return;
+    
+    const selection = editor.getSelection();
+    const selectedText = editor.getModel().getValueInRange(selection);
+    
+    if (selectedText) {
+        const wrappedText = `<${tag}>${selectedText}</${tag}>`;
+        editor.executeEdits('', [{
+            range: selection,
+            text: wrappedText,
+            forceMoveMarkers: true
+        }]);
+    } else {
+        // No selection - insert empty tags and position cursor inside
+        const pos = editor.getPosition();
+        const insertText = `<${tag}></${tag}>`;
+        editor.executeEdits('', [{
+            range: new monaco.Range(pos.lineNumber, pos.column, pos.lineNumber, pos.column),
+            text: insertText,
+            forceMoveMarkers: true
+        }]);
+        // Move cursor between tags
+        editor.setPosition({ lineNumber: pos.lineNumber, column: pos.column + tag.length + 2 });
+    }
+    editor.focus();
+}
+
+// Font Family
+function insertFontFamily(font) {
+    closeAllDropdowns();
+    if (!editor) return;
+    
+    const selection = editor.getSelection();
+    const selectedText = editor.getModel().getValueInRange(selection);
+    
+    if (selectedText) {
+        const wrappedText = `<span style="font-family: ${font};">${selectedText}</span>`;
+        editor.executeEdits('', [{ range: selection, text: wrappedText, forceMoveMarkers: true }]);
+    } else {
+        const pos = editor.getPosition();
+        const insertText = `<span style="font-family: ${font};"></span>`;
+        editor.executeEdits('', [{
+            range: new monaco.Range(pos.lineNumber, pos.column, pos.lineNumber, pos.column),
+            text: insertText,
+            forceMoveMarkers: true
+        }]);
+        editor.setPosition({ lineNumber: pos.lineNumber, column: pos.column + insertText.length - 7 });
+    }
+    editor.focus();
+}
+
+// Font Size
+function insertFontSize(size) {
+    closeAllDropdowns();
+    if (!editor) return;
+    
+    const selection = editor.getSelection();
+    const selectedText = editor.getModel().getValueInRange(selection);
+    
+    if (selectedText) {
+        const wrappedText = `<span style="font-size: ${size};">${selectedText}</span>`;
+        editor.executeEdits('', [{ range: selection, text: wrappedText, forceMoveMarkers: true }]);
+    } else {
+        const pos = editor.getPosition();
+        const insertText = `<span style="font-size: ${size};"></span>`;
+        editor.executeEdits('', [{
+            range: new monaco.Range(pos.lineNumber, pos.column, pos.lineNumber, pos.column),
+            text: insertText,
+            forceMoveMarkers: true
+        }]);
+        editor.setPosition({ lineNumber: pos.lineNumber, column: pos.column + insertText.length - 7 });
+    }
+    editor.focus();
+}
+
+// Font Color
+function applyFontColor(color) {
+    if (!editor) return;
+    
+    const selection = editor.getSelection();
+    const selectedText = editor.getModel().getValueInRange(selection);
+    
+    if (selectedText) {
+        const wrappedText = `<span style="color: ${color};">${selectedText}</span>`;
+        editor.executeEdits('', [{ range: selection, text: wrappedText, forceMoveMarkers: true }]);
+    } else {
+        const pos = editor.getPosition();
+        const insertText = `<span style="color: ${color};"></span>`;
+        editor.executeEdits('', [{
+            range: new monaco.Range(pos.lineNumber, pos.column, pos.lineNumber, pos.column),
+            text: insertText,
+            forceMoveMarkers: true
+        }]);
+        editor.setPosition({ lineNumber: pos.lineNumber, column: pos.column + insertText.length - 7 });
+    }
+    editor.focus();
+}
+
+// Highlight Color (Background)
+function applyHighlightColor(color) {
+    if (!editor) return;
+    
+    const selection = editor.getSelection();
+    const selectedText = editor.getModel().getValueInRange(selection);
+    
+    if (selectedText) {
+        const wrappedText = `<span style="background-color: ${color};">${selectedText}</span>`;
+        editor.executeEdits('', [{ range: selection, text: wrappedText, forceMoveMarkers: true }]);
+    } else {
+        const pos = editor.getPosition();
+        const insertText = `<span style="background-color: ${color};"></span>`;
+        editor.executeEdits('', [{
+            range: new monaco.Range(pos.lineNumber, pos.column, pos.lineNumber, pos.column),
+            text: insertText,
+            forceMoveMarkers: true
+        }]);
+        editor.setPosition({ lineNumber: pos.lineNumber, column: pos.column + insertText.length - 7 });
+    }
+    editor.focus();
+}
+
+// Remove Formatting (basic - removes span tags)
+function removeFormatting() {
+    if (!editor) return;
+    
+    const selection = editor.getSelection();
+    let selectedText = editor.getModel().getValueInRange(selection);
+    
+    if (selectedText) {
+        // Remove common formatting tags
+        selectedText = selectedText.replace(/<\/?(?:b|i|u|s|strong|em|span|font)[^>]*>/gi, '');
+        editor.executeEdits('', [{ range: selection, text: selectedText, forceMoveMarkers: true }]);
+    }
+    editor.focus();
+}
+
+// Indent
+function insertIndent(type) {
+    if (!editor) return;
+    
+    const selection = editor.getSelection();
+    const selectedText = editor.getModel().getValueInRange(selection);
+    
+    if (type === 'indent') {
+        if (selectedText) {
+            const wrappedText = `<div style="margin-left: 40px;">${selectedText}</div>`;
+            editor.executeEdits('', [{ range: selection, text: wrappedText, forceMoveMarkers: true }]);
+        } else {
+            insertAtCursor('<div style="margin-left: 40px;"></div>');
+        }
+    }
+    editor.focus();
+}
+
+// Alignment
+function insertAlign(alignment) {
+    if (!editor) return;
+    
+    const selection = editor.getSelection();
+    const selectedText = editor.getModel().getValueInRange(selection);
+    
+    if (selectedText) {
+        const wrappedText = `<div style="text-align: ${alignment};">${selectedText}</div>`;
+        editor.executeEdits('', [{ range: selection, text: wrappedText, forceMoveMarkers: true }]);
+    } else {
+        const pos = editor.getPosition();
+        const insertText = `<div style="text-align: ${alignment};"></div>`;
+        editor.executeEdits('', [{
+            range: new monaco.Range(pos.lineNumber, pos.column, pos.lineNumber, pos.column),
+            text: insertText,
+            forceMoveMarkers: true
+        }]);
+        editor.setPosition({ lineNumber: pos.lineNumber, column: pos.column + insertText.length - 6 });
+    }
+    editor.focus();
+}
+
+// Lists
+function insertList(type) {
+    if (!editor) return;
+    
+    const selection = editor.getSelection();
+    const selectedText = editor.getModel().getValueInRange(selection);
+    const tag = type === 'ul' ? 'ul' : 'ol';
+    
+    let listHtml;
+    if (selectedText) {
+        const items = selectedText.split('\n').filter(item => item.trim());
+        if (items.length > 0) {
+            listHtml = `<${tag}>\n${items.map(item => `    <li>${item.trim()}</li>`).join('\n')}\n</${tag}>`;
+        } else {
+            listHtml = `<${tag}>\n    <li>${selectedText}</li>\n</${tag}>`;
+        }
+        editor.executeEdits('', [{ range: selection, text: listHtml, forceMoveMarkers: true }]);
+    } else {
+        listHtml = `<${tag}>\n    <li></li>\n</${tag}>`;
+        insertAtCursor(listHtml);
+    }
+    editor.focus();
+}
+
+// Horizontal Rule
+function insertHorizontalRule() {
+    insertAtCursor('\n<hr style="border: none; border-top: 1px solid #ccc; margin: 20px 0;">\n');
+}
+
+// Table
+async function insertTable() {
+    const rows = await showPrompt('Number of rows:', '3');
+    const cols = await showPrompt('Number of columns:', '3');
+    
+    if (!rows || !cols) return;
+    
+    const numRows = parseInt(rows);
+    const numCols = parseInt(cols);
+    
+    let tableHtml = '<table style="border-collapse: collapse; width: 100%;">\n';
+    for (let r = 0; r < numRows; r++) {
+        tableHtml += '    <tr>\n';
+        for (let c = 0; c < numCols; c++) {
+            const tag = r === 0 ? 'th' : 'td';
+            tableHtml += `        <${tag} style="border: 1px solid #ddd; padding: 8px;">${r === 0 ? 'Header' : 'Cell'}</${tag}>\n`;
+        }
+        tableHtml += '    </tr>\n';
+    }
+    tableHtml += '</table>';
+    
+    insertAtCursor(tableHtml);
+}
+
+// Link
+async function insertLink() {
+    const url = await showPrompt('Enter URL:', 'https://');
+    if (!url) return;
+    
+    if (!editor) return;
+    
+    const selection = editor.getSelection();
+    const selectedText = editor.getModel().getValueInRange(selection);
+    const linkText = selectedText || await showPrompt('Enter link text:', 'Click here') || 'Click here';
+    
+    const linkHtml = `<a href="${url}" style="color: #2563eb; text-decoration: underline;">${linkText}</a>`;
+    
+    editor.executeEdits('', [{ range: selection, text: linkHtml, forceMoveMarkers: true }]);
+    editor.focus();
+}
+
+// Image
+async function insertImage() {
+    const src = await showPrompt('Enter image URL or embedded image name (e.g., "logo" for cid:logo):', '');
+    if (!src) return;
+    
+    const alt = await showPrompt('Enter alt text:', 'Image');
+    
+    let imgSrc = src;
+    if (!src.startsWith('http') && !src.startsWith('cid:')) {
+        imgSrc = `cid:${src}`;
+    }
+    
+    const imgHtml = `<img src="${imgSrc}" alt="${alt}" style="max-width: 100%; height: auto;">`;
+    insertAtCursor(imgHtml);
+}
+
+// Fullscreen
+function toggleFullscreen() {
+    const container = document.querySelector('.h-\\[calc\\(100vh-64px\\)\\]');
+    if (!container) return;
+    
+    if (!document.fullscreenElement) {
+        container.requestFullscreen();
+    } else {
+        document.exitFullscreen();
+    }
+}
+
+// Show Blocks (toggle visual outline on block elements)
+let showBlocksActive = false;
+function toggleShowBlocks() {
+    showBlocksActive = !showBlocksActive;
+    const btn = document.querySelector('[onclick="toggleShowBlocks()"]');
+    
+    if (showBlocksActive) {
+        btn.classList.add('active');
+        showNotification('Show blocks enabled - visible in preview', 'info');
+    } else {
+        btn.classList.remove('active');
+    }
+}
+
+// Format Code
+function formatCode() {
+    if (editor) {
+        editor.getAction('editor.action.formatDocument').run();
+    }
+}
+
+// Drag & Drop Handler
+function handleDragStart(event, value) {
+    event.dataTransfer.setData("text/plain", value);
+    event.dataTransfer.effectAllowed = "copy";
+}
+
+// Live Preview Functions
+function toggleLivePreview() {
+  // Toggle the right-side preview column
+  const col = document.getElementById('livePreviewColumn');
+  isLivePreviewOpen = !isLivePreviewOpen;
+  if (col) {
+    if (isLivePreviewOpen) {
+      col.classList.remove('hidden');
+      updateLivePreview();
+    } else {
+      col.classList.add('hidden');
+    }
+  }
+}
+
+function setLivePreviewMode(mode) {
+  livePreviewMode = mode;
+  const frame = document.getElementById('livePreviewFrame');
+  const desktopBtn = document.getElementById('liveDesktopBtn');
+  const mobileBtn = document.getElementById('liveMobileBtn');
+  
+  if (mode === 'mobile') {
+    frame.style.maxWidth = '375px';
+    frame.style.margin = '0 auto';
+    mobileBtn.classList.add('bg-slate-600', 'text-white');
+    mobileBtn.classList.remove('text-slate-400');
+    desktopBtn.classList.remove('bg-slate-600', 'text-white');
+    desktopBtn.classList.add('text-slate-400');
+  } else {
+    frame.style.maxWidth = '100%';
+    frame.style.margin = '0';
+    desktopBtn.classList.add('bg-slate-600', 'text-white');
+    desktopBtn.classList.remove('text-slate-400');
+    mobileBtn.classList.remove('bg-slate-600', 'text-white');
+    mobileBtn.classList.add('text-slate-400');
+  }
+}
+
+function updateLivePreview() {
+  if (!isLivePreviewOpen) return;
+  
+  const frame = document.getElementById('livePreviewFrame');
+  if (!frame || !editor) return;
+  
+  // Get current content directly from Monaco editor
+  let html = editor.getValue();
+  
+  // Replace placeholders for preview
+  html = html.replace(/\{\{FirstName\}\}/g, 'John');
+  html = html.replace(/\{\{LastName\}\}/g, 'Doe');
+  html = html.replace(/\{\{Email\}\}/g, 'john.doe@company.com');
+  html = html.replace(/\{\{link\}\}/g, '#');
+  html = html.replace(/\{\{YOUR_TRAINING_URL_HERE\}\}/g, '#');
+  html = html.replace(/\{\{tracking_pixel\}\}/g, '<!-- Tracking Pixel -->');
+  html = html.replace(/TRACKING_PIXEL_URL/g, 'about:blank');
+  
+  // Set srcdoc directly (like landing page)
+  frame.srcdoc = html;
+}
+
+function updateCharCount() {
+  const subjectEl = document.getElementById('subject');
+  const charCountEl = document.getElementById('charCount');
+  if (subjectEl && charCountEl) {
+    charCountEl.textContent = subjectEl.value.length;
+  }
+}
+
+// Add event listener after DOM is ready (handled in DOMContentLoaded)
+
+// Preview Logic - copied from landing page approach
+function setPreviewMode(mode) {
+  const modal = document.getElementById('previewModal');
+  const container = document.getElementById('modalPreviewContainer');
+  const frame = document.getElementById('modalPreviewFrame');
+  const desktopBtn = document.getElementById('modalDesktopBtn');
+  const mobileBtn = document.getElementById('modalMobileBtn');
+  
+  // Open modal
+  modal.classList.remove('hidden');
+  
+  // Get content directly from Monaco editor
+  let html = editor ? editor.getValue() : (htmlEditor ? htmlEditor.value : '');
+  
+  // Replace placeholders for preview
+  html = html.replace(/\{\{FirstName\}\}/g, 'John');
+  html = html.replace(/\{\{LastName\}\}/g, 'Doe');
+  html = html.replace(/\{\{Email\}\}/g, 'john.doe@company.com');
+  html = html.replace(/\{\{link\}\}/g, '#');
+  html = html.replace(/\{\{YOUR_TRAINING_URL_HERE\}\}/g, '#');
+  html = html.replace(/\{\{tracking_pixel\}\}/g, '<!-- Tracking Pixel -->');
+  html = html.replace(/TRACKING_PIXEL_URL/g, 'about:blank');
+  
+  // Set srcdoc directly (like landing page)
+  frame.srcdoc = html;
+  
+  if (mode === 'mobile') {
+    container.style.width = '375px';
+    container.style.height = '667px';
+    mobileBtn.classList.add('bg-slate-600', 'text-white');
+    mobileBtn.classList.remove('text-slate-400');
+    desktopBtn.classList.remove('bg-slate-600', 'text-white');
+    desktopBtn.classList.add('text-slate-400');
+  } else {
+    container.style.width = '100%';
+    container.style.height = '100%';
+    desktopBtn.classList.add('bg-slate-600', 'text-white');
+    desktopBtn.classList.remove('text-slate-400');
+    mobileBtn.classList.remove('bg-slate-600', 'text-white');
+    mobileBtn.classList.add('text-slate-400');
+  }
+}
+
+function setModalPreviewMode(mode) {
+  setPreviewMode(mode);
+}
+
+function closePreviewModal() {
+  document.getElementById('previewModal').classList.add('hidden');
+}
+
+// Variable Insertion Functions (for left sidebar)
+function insertVariable(variable) {
+  insertAtCursor(variable);
+  showNotification(`Inserted ${variable}`, 'success');
+}
+
+async function insertTrackedLink() {
+  const linkText = await showPrompt('Enter visible link text:', 'Click here');
+  if (!linkText) return;
+  
+  const linkHtml = `<a href="{{link}}" style="color: #2563eb; text-decoration: underline;">${linkText}</a>`;
+  insertAtCursor(linkHtml);
+  showNotification('Tracked link inserted', 'success');
+}
+
+async function insertButton() {
+  const buttonText = await showPrompt('Enter button text:', 'Click Here');
+  if (!buttonText) return;
+  
+  const buttonHtml = `<table cellpadding="0" cellspacing="0" border="0" style="margin: 20px 0;">
+  <tr>
+    <td style="background-color: #2563eb; border-radius: 4px; padding: 12px 24px;">
+      <a href="{{link}}" style="color: #ffffff; text-decoration: none; font-weight: bold; font-size: 16px; display: inline-block;">${buttonText}</a>
+    </td>
+  </tr>
+</table>`;
+  
+  insertAtCursor(buttonHtml);
+  showNotification('Button inserted', 'success');
+}
+
+async function insertEmbeddedImage() {
+  const imageName = await showPrompt('Enter embedded image name (e.g., "logo"):', 'logo');
+  if (!imageName) return;
+  
+  const altText = await showPrompt('Enter alt text:', imageName);
+  const imageHtml = `<img src="cid:${imageName}" alt="${altText}" style="max-width: 100%; height: auto;" />`;
+  
+  insertAtCursor(imageHtml);
+  showNotification('Embedded image placeholder added', 'success');
+}
+
+function insertTrackingPixel() {
+  if (!editor) return;
+  
+  // Add tracking pixel at the end of body
+  let content = editor.getValue();
+  const bodyCloseIndex = content.lastIndexOf('</body>');
+  if (bodyCloseIndex !== -1) {
+    content = content.slice(0, bodyCloseIndex) + '{{tracking_pixel}}\n' + content.slice(bodyCloseIndex);
+    editor.setValue(content);
+  } else {
+    // No body tag - append at end
+    editor.setValue(content + '\n{{tracking_pixel}}');
+  }
+  showNotification('Tracking pixel added to end of email', 'success');
+}
+
+async function saveTemplate() {
+  const subject = subjectInput ? subjectInput.value : '';
+  // Get content directly from Monaco editor
+  const html_content = editor ? editor.getValue() : (htmlEditor ? htmlEditor.value : '');
+  const name = templateNameInput ? (templateNameInput.value || subject) : subject;
+  const id = templateIdInput ? templateIdInput.value : '';
+  
+  if (!subject || !html_content) {
+    showNotification('Please fill in both subject and content', 'error');
+    return;
+  }
+  
+  try {
+    const response = await fetch('{{ url_for("template_editor") }}', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: id,
+        name: name,
+        subject: subject,
+        html_content: html_content
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      showNotification('Template saved successfully!', 'success');
+      document.getElementById('saveStatus').classList.remove('hidden');
+      setTimeout(() => document.getElementById('saveStatus').classList.add('hidden'), 3000);
+      
+      if (data.id) {
+        templateIdInput.value = data.id;
+        const newUrl = new URL(window.location);
+        newUrl.searchParams.set('id', data.id);
+        window.history.pushState({}, '', newUrl);
+      }
+    } else {
+      showNotification('Error saving: ' + data.message, 'error');
+    }
+  } catch (e) {
+    showNotification('Error: ' + e.message, 'error');
+  }
+}
+
+async function sendTestEmail() {
+  const email = await showPrompt('Enter email address to send test to:', '');
+  if (!email) return;
+  
+  const subject = subjectInput.value;
+  // Get content directly from Monaco editor
+  const html_content = editor ? editor.getValue() : (htmlEditor ? htmlEditor.value : '');
+  
+  showNotification('Sending test email...', 'info');
+  
+  try {
+    const response = await fetch('/templates/send_test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        email: email,
+        subject: subject,
+        html_content: html_content
+      })
+    });
+    
+    const data = await response.json();
+    if (data.success) {
+      showNotification(`Test email sent to ${email}!`, 'success');
+    } else {
+      showNotification('Failed to send: ' + data.message, 'error');
+    }
+  } catch (e) {
+    showNotification('Error sending test email', 'error');
+  }
+}
+</script>
+{% endblock %}
+
+{% block modals %}
+<!-- Preview Modal (for Mobile/Desktop check) -->
+<div id="previewModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
+  <div class="bg-slate-800 rounded-xl w-full h-full max-w-6xl max-h-[90vh] flex flex-col m-4 border border-slate-700 shadow-2xl">
+    <div class="flex justify-between items-center p-4 border-b border-slate-700 bg-slate-800 rounded-t-xl">
+      <div class="flex items-center gap-4">
+        <h3 class="text-lg font-bold text-slate-100">Preview</h3>
+        <div class="flex bg-slate-700 rounded-lg p-1">
+          <button onclick="setModalPreviewMode('desktop')" id="modalDesktopBtn" class="px-3 py-1 rounded text-white bg-slate-600 text-sm transition-all">
+            <i class="fas fa-desktop mr-2"></i>Desktop
+          </button>
+          <button onclick="setModalPreviewMode('mobile')" id="modalMobileBtn" class="px-3 py-1 rounded text-slate-400 hover:text-white text-sm transition-all">
+            <i class="fas fa-mobile-alt mr-2"></i>Mobile
+          </button>
+        </div>
+      </div>
+      <button onclick="closePreviewModal()" class="text-slate-400 hover:text-white p-2 rounded-lg hover:bg-slate-700 transition-colors">
+        <i class="fas fa-times text-xl"></i>
+      </button>
+    </div>
+    <div class="flex-1 bg-slate-900 p-8 overflow-auto flex justify-center items-start">
+      <div id="modalPreviewContainer" class="bg-white transition-all duration-300 shadow-2xl">
+        <iframe id="modalPreviewFrame" class="w-full h-full border-0"></iframe>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

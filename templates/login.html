@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login - Phishing Simulation Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/css/style.css" />
+  <script src="/static/theme.js"></script>
+</head>
+<body class="ops-login-body">
+  <div class="ops-login-shell">
+
+    <!-- LEFT PANEL: always dark -->
+    <aside class="ops-login-left">
+      <div class="ops-login-left-bg" aria-hidden="true">
+        <div class="ops-orb ops-orb-1"></div>
+        <div class="ops-orb ops-orb-2"></div>
+        <div class="ops-shield-bg">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+        </div>
+        <div class="ops-data-label" aria-hidden="true">Data_Pipeline_Inbound :: Secure :: 4.2.1</div>
+      </div>
+
+      <div class="ops-login-left-content">
+        <div class="ops-brand">
+          <div class="ops-brand-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              <polyline points="9 12 11 14 15 10"/>
+            </svg>
+          </div>
+          <div>
+            <div class="ops-brand-name">Phishing Sim</div>
+            <div class="ops-brand-sub">Security Operations</div>
+          </div>
+        </div>
+
+        <div class="ops-login-hero-text">
+          <h1 class="ops-login-headline">Security<br>Awareness<br>Platform.</h1>
+          <p class="ops-login-tagline">Simulate, measure, and improve your organisation&rsquo;s phishing resilience with precision campaign tooling.</p>
+        </div>
+      </div>
+
+      <div class="ops-login-left-footer">
+        <div class="ops-access-badge">Authorized Access Only</div>
+        <div class="ops-left-footer-copy">Built for Analyst Resilience &middot; 2026</div>
+      </div>
+    </aside>
+
+    <!-- RIGHT PANEL: theme-aware -->
+    <main class="ops-login-right">
+
+      <!-- Theme toggle -->
+      <div class="ops-theme-toggle-wrap">
+        <button class="ops-theme-btn" type="button" data-theme-toggle aria-label="Toggle theme">
+          <svg class="ops-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+          <svg class="ops-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+          <span class="ops-theme-label">Switch to Day Ops</span>
+        </button>
+      </div>
+
+      <div class="ops-form-wrap">
+        <!-- Mobile-only logo -->
+        <div class="ops-mobile-brand">
+          <div class="ops-brand-icon ops-brand-icon-sm">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              <polyline points="9 12 11 14 15 10"/>
+            </svg>
+          </div>
+          <span class="ops-brand-name ops-brand-name-dark">Phishing Sim</span>
+        </div>
+
+        <div class="ops-form-heading">
+          <h2 class="ops-form-title">Operator Login</h2>
+          <p class="ops-form-subtitle">Welcome back. Authenticate to access the campaign dashboard.</p>
+        </div>
+
+        {% if error %}
+        <div class="ops-error-box">
+          <svg class="ops-error-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          <p class="ops-error-text">{{ error }}</p>
+        </div>
+        {% endif %}
+
+        <form method="POST" class="ops-form">
+          <div class="ops-field-group">
+            <label class="ops-field-label" for="username">Username</label>
+            <input class="ops-field-input" id="username" name="username" type="text"
+                   autocomplete="username" placeholder="your.username" required />
+          </div>
+
+          <div class="ops-field-group">
+            <label class="ops-field-label" for="password">Password</label>
+            <div class="ops-input-wrap">
+              <input class="ops-field-input ops-field-input-padded" id="password" name="password"
+                     type="password" autocomplete="current-password"
+                     placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;" required />
+              <svg class="ops-input-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+            </div>
+          </div>
+
+          <div class="ops-form-extras">
+            <label class="ops-remember-label">
+              <input type="checkbox" class="ops-checkbox" name="remember_me" />
+              <span>Remember device for 30 days</span>
+            </label>
+          </div>
+
+          <button class="ops-submit-btn" type="submit">
+            <span class="ops-submit-label">Sign In</span>
+            <svg class="ops-submit-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+            </svg>
+            <div class="ops-submit-shine" aria-hidden="true"></div>
+          </button>
+        </form>
+
+        <div class="ops-security-strip">
+          <div class="ops-security-badge">
+            <svg class="ops-shield-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              <polyline points="9 12 11 14 15 10"/>
+            </svg>
+            <span>Session Token Encryption Active</span>
+          </div>
+          <p class="ops-security-note">Session-based &middot; Secure analyst access &middot; Platform v2.0</p>
+        </div>
+      </div>
+
+      <div class="ops-right-footer">
+        <div class="ops-footer-links">
+          <span>Privacy</span>
+          <span>Compliance</span>
+          <span>Support</span>
+        </div>
+        <div class="ops-footer-node">SEC-AWARENESS-01</div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    (function () {
+      function syncLabel() {
+        var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        var label = document.querySelector('.ops-theme-label');
+        if (label) label.textContent = isDark ? 'Switch to Day Ops' : 'Switch to Night Ops';
+      }
+      syncLabel();
+      document.addEventListener('click', function (e) {
+        if (e.target.closest('[data-theme-toggle]')) setTimeout(syncLabel, 40);
+      });
+    }());
+  </script>
+</body>
+</html>

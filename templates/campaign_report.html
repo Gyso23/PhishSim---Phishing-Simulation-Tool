@@ -1,0 +1,529 @@
+{% extends "base.html" %}
+{% block title %}Campaign Report - {{ campaign.name }}{% endblock %}
+
+{% block content %}
+<style>
+  :root {
+    --report-bg: #ffffff;
+    --report-card-bg: #ffffff;
+    --report-card-border: #e2e8f0;
+    --report-header-bg: #f8fafc;
+    --report-header-border: #e2e8f0;
+    --report-text-main: #0f172a;
+    --report-text-muted: #64748b;
+    --report-text-light: #475569;
+    --report-meta-bg: #f1f5f9;
+    --report-stat-bg: #f8fafc;
+    --report-table-header-bg: #f1f5f9;
+    --report-table-border: #e2e8f0;
+    --report-hover-bg: rgba(59, 130, 246, 0.05);
+    --report-toolbar-bg: #ffffff;
+  }
+  .dark {
+    --report-bg: #0f172a;
+    --report-card-bg: #1e293b;
+    --report-card-border: #334155;
+    --report-header-bg: linear-gradient(135deg, #1e3a5f 0%, #1e293b 100%);
+    --report-header-border: #334155;
+    --report-text-main: #f1f5f9;
+    --report-text-muted: #94a3b8;
+    --report-text-light: #e2e8f0;
+    --report-meta-bg: #0f172a;
+    --report-stat-bg: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    --report-table-header-bg: #0f172a;
+    --report-table-border: #1e293b;
+    --report-toolbar-bg: #1e293b;
+  }
+
+  .report-page { max-width: 1100px; margin: 0 auto; }
+  .report-card { background: var(--report-card-bg); border-radius: 12px; border: 1px solid var(--report-card-border); margin-bottom: 24px; overflow: hidden; }
+  .report-card-header { background: var(--report-header-bg); padding: 16px 24px; border-bottom: 1px solid var(--report-header-border); display: flex; justify-content: space-between; align-items: center; }
+  .report-card-header h2 { margin: 0; font-size: 16px; font-weight: 600; color: var(--report-text-main); display: flex; align-items: center; gap: 10px; }
+  .report-card-header h2 i { color: #3b82f6; }
+  .report-card-body { padding: 24px; }
+  .editable-wrapper { position: relative; border-radius: 6px; transition: all 0.2s; }
+  .editable-wrapper:hover { background: rgba(59, 130, 246, 0.05); }
+  .editable-wrapper.editing { background: rgba(251, 191, 36, 0.15); outline: 2px dashed #f59e0b; outline-offset: 2px; }
+  .editable-content { padding: 8px 12px; border-radius: 6px; min-height: 24px; color: var(--report-text-light); line-height: 1.6; }
+  .editable-content:focus { outline: none; background: rgba(251, 191, 36, 0.1); }
+  .editable-content p { margin: 0 0 8px; }
+  .editable-content p:last-child { margin-bottom: 0; }
+  .editable-content ul, .editable-content ol { margin: 8px 0; padding-left: 24px; }
+  .editable-content li { margin-bottom: 4px; }
+  .edit-indicator { position: absolute; top: 4px; right: 4px; opacity: 0; transition: opacity 0.2s; background: #f59e0b; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; pointer-events: none; font-weight: 600; }
+  .editable-wrapper:hover .edit-indicator { opacity: 0.7; }
+  .editable-wrapper.editing .edit-indicator { opacity: 1; background: #dc2626; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+  .stat-card { background: var(--report-stat-bg); border: 1px solid var(--report-card-border); border-radius: 10px; padding: 20px; text-align: center; }
+  .stat-value { font-size: 32px; font-weight: 700; color: var(--report-text-main); line-height: 1; }
+  .stat-label { font-size: 13px; color: var(--report-text-muted); margin-top: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-trend { font-size: 13px; margin-top: 8px; font-weight: 600; }
+  .trend-good { color: #22c55e; }
+  .trend-bad { color: #ef4444; }
+  .trend-neutral { color: #94a3b8; }
+  .modern-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+  .modern-table thead th { background: var(--report-table-header-bg); color: var(--report-text-muted); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--report-card-border); }
+  .modern-table thead th:first-child { border-radius: 8px 0 0 0; }
+  .modern-table thead th:last-child { border-radius: 0 8px 0 0; }
+  .modern-table tbody td { padding: 14px 16px; border-bottom: 1px solid var(--report-table-border); color: var(--report-text-light); font-size: 14px; }
+  .modern-table tbody tr:hover { background: var(--report-hover-bg); }
+  .modern-table tbody tr:last-child td { border-bottom: none; }
+  .modern-table .total-row { background: var(--report-table-header-bg); font-weight: 600; }
+  .rate-badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 13px; font-weight: 600; }
+  .rate-badge.high-risk { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+  .rate-badge.medium-risk { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
+  .rate-badge.low-risk { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+  .meta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; background: var(--report-meta-bg); border-radius: 8px; padding: 20px; margin-bottom: 24px; }
+  .meta-item { display: flex; flex-direction: column; gap: 4px; }
+  .meta-label { font-size: 12px; color: var(--report-text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .meta-value { font-size: 15px; color: var(--report-text-light); font-weight: 500; }
+  .reporters-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+  .reporter-item { background: var(--report-meta-bg); border-radius: 8px; padding: 12px 16px; display: flex; align-items: center; gap: 12px; }
+  .reporter-avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #22c55e, #16a34a); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 14px; }
+  .reporter-info { flex: 1; }
+  .reporter-name { font-weight: 500; color: var(--report-text-light); font-size: 14px; }
+  .reporter-email { font-size: 12px; color: var(--report-text-muted); }
+  .email-preview-container { background: white; border-radius: 8px; max-height: 500px; overflow: auto; }
+  .section-number { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; background: #3b82f6; color: white; border-radius: 6px; font-size: 12px; font-weight: 700; }
+  
+  /* Screen-only styles */
+  @media screen {
+    .email-preview-container { max-height: 500px; overflow: auto; }
+  }
+  .floating-toolbar { position: fixed; bottom: 24px; right: 24px; display: flex; gap: 8px; background: var(--report-toolbar-bg); padding: 12px 16px; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.4); border: 1px solid var(--report-card-border); z-index: 100; }
+  .toolbar-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; border: none; }
+  .toolbar-btn.primary { background: #3b82f6; color: white; }
+  .toolbar-btn.primary:hover { background: #2563eb; }
+  .toolbar-btn.secondary { background: #334155; color: #e2e8f0; }
+  .toolbar-btn.secondary:hover { background: #475569; }
+  .toolbar-btn.success { background: #22c55e; color: white; }
+  @media print { 
+    /* Force light theme for printing */
+    :root, .dark {
+      --report-bg: #ffffff;
+      --report-card-bg: #ffffff;
+      --report-card-border: #e2e8f0;
+      --report-header-bg: #f8fafc;
+      --report-header-border: #e2e8f0;
+      --report-text-main: #0f172a;
+      --report-text-muted: #64748b;
+      --report-text-light: #475569;
+      --report-meta-bg: #f1f5f9;
+      --report-stat-bg: #f8fafc;
+      --report-table-header-bg: #f1f5f9;
+      --report-table-border: #e2e8f0;
+    }
+    
+    * {
+      overflow: visible !important;
+      max-height: none !important;
+    }
+    
+    body { 
+      background: white !important; 
+      color: #000 !important;
+      overflow: visible !important;
+    }
+    
+    .report-card { 
+      border: 1px solid #ddd !important; 
+      background: white !important; 
+      page-break-inside: auto;
+      overflow: visible !important;
+    }
+    
+    .report-card-header {
+      background: #f8fafc !important;
+      border-bottom: 1px solid #e2e8f0 !important;
+    }
+    
+    .report-card-header h2 {
+      color: #0f172a !important;
+    }
+    
+    .no-print { 
+      display: none !important; 
+    }
+    
+    .editable-content { 
+      color: #333 !important; 
+    }
+    
+    .editable-wrapper {
+      background: transparent !important;
+      outline: none !important;
+    }
+    
+    .editable-wrapper.editing {
+      background: transparent !important;
+      outline: none !important;
+    }
+    
+    .edit-indicator {
+      display: none !important;
+    }
+    
+    .report-page { 
+      max-width: 100%; 
+      padding: 0; 
+    }
+    
+    aside { 
+      display: none !important; 
+    }
+    
+    .section-number {
+      background: #3b82f6 !important;
+      color: white !important;
+      print-color-adjust: exact;
+      -webkit-print-color-adjust: exact;
+    }
+    
+    .modern-table {
+      page-break-inside: avoid;
+    }
+    
+    .modern-table thead th {
+      background: #f1f5f9 !important;
+      color: #64748b !important;
+      border-bottom: 1px solid #e2e8f0 !important;
+    }
+    
+    .modern-table tbody td {
+      color: #475569 !important;
+      border-bottom: 1px solid #e2e8f0 !important;
+    }
+    
+    .modern-table .total-row {
+      background: #f1f5f9 !important;
+    }
+    
+    .rate-badge {
+      border: 1px solid currentColor;
+      print-color-adjust: exact;
+      -webkit-print-color-adjust: exact;
+    }
+    
+    .stat-card {
+      background: #f8fafc !important;
+      border: 1px solid #e2e8f0 !important;
+    }
+    
+    .stat-value {
+      color: #0f172a !important;
+    }
+    
+    .stat-label {
+      color: #64748b !important;
+    }
+    
+    .meta-grid {
+      background: #f1f5f9 !important;
+    }
+    
+    .meta-label {
+      color: #64748b !important;
+    }
+    
+    .meta-value {
+      color: #475569 !important;
+    }
+    
+    .reporter-item {
+      background: #f1f5f9 !important;
+    }
+    
+    .reporter-name {
+      color: #475569 !important;
+    }
+    
+    .reporter-email {
+      color: #64748b !important;
+    }
+    
+    .reporter-avatar {
+      print-color-adjust: exact;
+      -webkit-print-color-adjust: exact;
+    }
+    
+    /* Fix scrollbar and height issues */
+    .email-preview-container {
+      max-height: none !important;
+      overflow: visible !important;
+      page-break-inside: auto;
+    }
+    
+    .report-page {
+      overflow: visible !important;
+    }
+    
+    /* Ensure colors print correctly */
+    .text-red-400, .text-green-400 {
+      print-color-adjust: exact;
+      -webkit-print-color-adjust: exact;
+    }
+  }
+</style>
+
+<div class="report-page p-6">
+  <div class="flex justify-between items-center mb-6 no-print">
+    <a onclick="history.back()" href="#" class="text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors cursor-pointer"><i class="fas fa-arrow-left mr-2"></i>Back</a>
+    <div class="flex gap-3">
+      <a href="/analytics" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-white rounded-lg transition-colors"><i class="fas fa-chart-bar mr-2"></i>Analytics</a>
+      <a href="/questionnaire_responses/{{ campaign.id }}" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-white rounded-lg transition-colors"><i class="fas fa-clipboard-list mr-2"></i>Responses</a>
+      <a href="/reminder_settings/{{ campaign.id }}" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-white rounded-lg transition-colors"><i class="fas fa-bell mr-2"></i>Reminders</a>
+      <a id="exportPdfBtn" href="/report/{{ campaign.id }}/export_pdf" class="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg transition-colors flex items-center gap-2" title="Export full report as PDF">
+        <i class="fas fa-file-pdf"></i> Export PDF
+      </a>
+    </div>
+  </div>
+
+  <div class="text-center mb-8">
+    <div class="editable-wrapper" data-field="title">
+      <span class="edit-indicator"><i class="fas fa-exclamation-triangle"></i> Temporary Only</span>
+      <h1 class="editable-content text-3xl font-bold text-slate-900 dark:text-white" contenteditable="true">Phishing Simulation Campaign Report</h1>
+    </div>
+    <p class="text-slate-500 dark:text-slate-400 mt-2">{{ campaign.name }}</p>
+  </div>
+
+  <div class="meta-grid">
+    <div class="meta-item"><span class="meta-label">Campaign Date</span><span class="meta-value">{{ campaign.created_at.strftime('%d %B %Y') }}</span></div>
+    <div class="meta-item"><span class="meta-label">Campaign Theme</span><span class="meta-value">{{ campaign.subject }}</span></div>
+    <div class="meta-item"><span class="meta-label">Sender</span><span class="meta-value">{{ campaign.sender_name or 'N/A' }} &lt;{{ campaign.sender_email or 'N/A' }}&gt;</span></div>
+    <div class="meta-item"><span class="meta-label">Status</span><span class="meta-value">{{ campaign.status | capitalize }}</span></div>
+    <div class="meta-item"><span class="meta-label">Compare With</span>
+      <span class="meta-value">
+        <form method="GET" action="" class="flex items-center gap-2 no-print">
+          <select name="compare_with" onchange="this.form.submit()" class="text-sm bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-slate-700 dark:text-slate-200">
+            <option value="none" {% if not prev_campaign %}selected{% endif %}>— None —</option>
+            {% for c in all_campaigns %}
+            <option value="{{ c.id }}" {% if prev_campaign and prev_campaign.id == c.id %}selected{% endif %}>{{ c.name }}</option>
+            {% endfor %}
+          </select>
+        </form>
+        {% if prev_campaign %}<span class="text-sm">vs {{ prev_campaign.name }} ({{ prev_campaign.created_at.strftime('%d %b %Y') }})</span>{% endif %}
+      </span>
+    </div>
+  </div>
+
+  {% if prev_stats %}
+  <div class="mb-6 rounded-xl border border-blue-200 dark:border-blue-700 overflow-hidden">
+    <div class="flex items-center gap-3 px-5 py-3 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-800">
+      <i class="fas fa-balance-scale text-blue-500"></i>
+      <span class="font-semibold text-slate-800 dark:text-white text-sm">Comparison vs {{ prev_campaign.name }}</span>
+      <span class="text-xs text-slate-500 dark:text-slate-400">({{ prev_campaign.created_at.strftime('%d %b %Y') }})</span>
+    </div>
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-0 divide-x divide-y divide-slate-100 dark:divide-slate-700">
+      {% set metrics = [
+        ('Click Rate', stats.click_rate, prev_stats.click_rate, True, '#ef4444', True),
+        ('Report Rate', stats.report_rate, prev_stats.report_rate, False, '#22c55e', True),
+        ('Open Rate', stats.open_rate, prev_stats.open_rate, False, '#3b82f6', True),
+        ('Compromised', stats.compromised, prev_stats.compromised, True, '#f59e0b', False),
+      ] %}
+      {% for label, cur, prv, lower_is_better, color, show_pct in metrics %}
+      {% set delta = cur - prv %}
+      <div class="px-5 py-4 bg-white dark:bg-slate-800">
+        <div class="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">{{ label }}</div>
+        <div class="text-xl font-bold" style="color:{{ color }}">{{ cur }}{% if show_pct %}%{% endif %}</div>
+        <div class="text-xs mt-1 font-semibold {% if delta == 0 %}text-slate-400{% elif (lower_is_better and delta < 0) or (not lower_is_better and delta > 0) %}text-emerald-600 dark:text-emerald-400{% else %}text-red-500 dark:text-red-400{% endif %}">
+          {% if delta > 0 %}↑{% elif delta < 0 %}↓{% else %}→{% endif %}
+          {{ delta|abs }}{% if show_pct %}%{% endif %} vs prev
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="report-card">
+    <div class="report-card-header"><h2><span class="section-number">1</span> <i class="fas fa-chart-line"></i> Executive Summary</h2></div>
+    <div class="report-card-body">
+      <div class="editable-wrapper mb-6" data-field="summary">
+        <span class="edit-indicator"><i class="fas fa-exclamation-triangle"></i> Temporary Only</span>
+        <div class="editable-content" contenteditable="true">{{ narrative.summary }}</div>
+      </div>
+      <div class="stats-grid mb-6">
+        <div class="stat-card">
+          <div class="stat-value">{{ stats.total }}</div>
+          <div class="stat-label">Targeted</div>
+          {% if prev_stats %}<div class="stat-trend trend-neutral">prev: {{ prev_stats.total }}</div>{% endif %}
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color:#3b82f6">{{ stats.open_rate }}%</div>
+          <div class="stat-label">Open Rate</div>
+          {% if prev_stats %}{% set d = stats.open_rate - prev_stats.open_rate %}<div class="stat-trend {{ 'trend-good' if d > 0 else 'trend-bad' if d < 0 else 'trend-neutral' }}">{% if d > 0 %}↑{% elif d < 0 %}↓{% else %}→{% endif %} {{ d|abs }}% vs prev</div>{% endif %}
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color:{{ '#ef4444' if stats.click_rate > 10 else '#f59e0b' if stats.click_rate > 5 else '#22c55e' }}">{{ stats.click_rate }}%</div>
+          <div class="stat-label">Click Rate</div>
+          {% if prev_stats %}{% set d = stats.click_rate - prev_stats.click_rate %}<div class="stat-trend {{ 'trend-good' if d < 0 else 'trend-bad' if d > 0 else 'trend-neutral' }}">{% if d > 0 %}↑{% elif d < 0 %}↓{% else %}→{% endif %} {{ d|abs }}% vs prev</div>{% endif %}
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color:#22c55e">{{ stats.report_rate }}%</div>
+          <div class="stat-label">Report Rate</div>
+          {% if prev_stats %}{% set d = stats.report_rate - prev_stats.report_rate %}<div class="stat-trend {{ 'trend-good' if d > 0 else 'trend-bad' if d < 0 else 'trend-neutral' }}">{% if d > 0 %}↑{% elif d < 0 %}↓{% else %}→{% endif %} {{ d|abs }}% vs prev</div>{% endif %}
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color:#f59e0b">{{ stats.compromised }}</div>
+          <div class="stat-label">Compromised</div>
+          {% if prev_stats %}{% set d = stats.compromised - prev_stats.compromised %}<div class="stat-trend {{ 'trend-good' if d < 0 else 'trend-bad' if d > 0 else 'trend-neutral' }}">{% if d > 0 %}↑{% elif d < 0 %}↓{% else %}→{% endif %} {{ d|abs }} vs prev</div>{% endif %}
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color:#8b5cf6">{{ stats.reported }}</div>
+          <div class="stat-label">Reported</div>
+          {% if prev_stats %}{% set d = stats.reported - prev_stats.reported %}<div class="stat-trend {{ 'trend-good' if d > 0 else 'trend-bad' if d < 0 else 'trend-neutral' }}">{% if d > 0 %}↑{% elif d < 0 %}↓{% else %}→{% endif %} {{ d|abs }} vs prev</div>{% endif %}
+        </div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div><h3 class="text-red-400 font-semibold mb-3"><i class="fas fa-exclamation-triangle mr-2"></i>Critical Findings</h3>
+          <div class="editable-wrapper" data-field="critical"><span class="edit-indicator"><i class="fas fa-exclamation-triangle"></i> Temporary Only</span>
+            <ul class="editable-content list-disc pl-5" contenteditable="true">{% for item in narrative.critical %}<li>{{ item }}</li>{% else %}<li>Click to add critical findings...</li>{% endfor %}</ul>
+          </div>
+        </div>
+        <div><h3 class="text-green-400 font-semibold mb-3"><i class="fas fa-check-circle mr-2"></i>Positive Notes</h3>
+          <div class="editable-wrapper" data-field="positive"><span class="edit-indicator"><i class="fas fa-exclamation-triangle"></i> Temporary Only</span>
+            <ul class="editable-content list-disc pl-5" contenteditable="true">{% for item in narrative.positive %}<li>{{ item }}</li>{% else %}<li>Click to add positive observations...</li>{% endfor %}</ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="report-card">
+    <div class="report-card-header"><h2><span class="section-number">2</span> <i class="fas fa-building"></i> Subsidiary Performance</h2></div>
+    <div class="report-card-body">
+      <div class="overflow-x-auto">
+        <table class="modern-table">
+          <thead><tr><th>Subsidiary</th><th class="text-center">Targeted</th><th class="text-center">Opened</th><th class="text-center">Clicked</th><th class="text-center">Reported</th><th class="text-center">Open Rate</th><th class="text-center">Click Rate</th><th class="text-center">Report Rate</th></tr></thead>
+          <tbody>
+            {% for sbu in stats.sbu_list %}<tr><td class="font-medium">{{ sbu.sbu }}</td><td class="text-center">{{ sbu.targeted }}</td><td class="text-center">{{ sbu.opened }}</td><td class="text-center">{{ sbu.clicked }}</td><td class="text-center">{{ sbu.reported }}</td><td class="text-center">{{ sbu.open_rate }}%</td><td class="text-center"><span class="rate-badge {{ 'high-risk' if sbu.click_rate > 15 else 'medium-risk' if sbu.click_rate > 5 else 'low-risk' }}">{{ sbu.click_rate }}%</span></td><td class="text-center"><span class="rate-badge {{ 'low-risk' if sbu.report_rate > 10 else 'medium-risk' if sbu.report_rate > 5 else 'high-risk' }}">{{ sbu.report_rate }}%</span></td></tr>{% endfor %}
+            <tr class="total-row"><td>TOTAL</td><td class="text-center">{{ stats.total }}</td><td class="text-center">{{ stats.opened }}</td><td class="text-center">{{ stats.clicked }}</td><td class="text-center">{{ stats.reported }}</td><td class="text-center">{{ stats.open_rate }}%</td><td class="text-center">{{ stats.click_rate }}%</td><td class="text-center">{{ stats.report_rate }}%</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="report-card">
+    <div class="report-card-header"><h2><span class="section-number">3</span> <i class="fas fa-brain"></i> Behavioural Analysis</h2></div>
+    <div class="report-card-body">
+      <div class="editable-wrapper" data-field="behaviour"><span class="edit-indicator"><i class="fas fa-exclamation-triangle"></i> Temporary Only</span>
+        <div class="editable-content" contenteditable="true"><p><strong>Why the results?</strong></p><ul><li><strong>Threat Perception:</strong> The "{{ campaign.subject }}" theme {{ 'failed to' if stats.click_rate < 5 else 'successfully' }} created urgency.</li><li><strong>Training Effectiveness:</strong> Users demonstrated {{ 'high' if stats.click_rate < 5 else 'moderate' if stats.click_rate < 15 else 'low' }} resilience.</li><li><strong>Awareness Gaps:</strong> {{ stats.clicked }} user(s) failed to verify sender authenticity.</li></ul><p><strong>Critical Concern:</strong> Users who clicked failed to verify the sender address.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="report-card">
+    <div class="report-card-header"><h2><span class="section-number">4</span> <i class="fas fa-tasks"></i> Immediate Action Required</h2></div>
+    <div class="report-card-body">
+      <div class="editable-wrapper" data-field="actions"><span class="edit-indicator"><i class="fas fa-exclamation-triangle"></i> Temporary Only</span>
+        <ul class="editable-content list-disc pl-5" contenteditable="true">{% for action in narrative.actions %}<li>{{ action }}</li>{% else %}<li>Schedule targeted training for users who clicked</li><li>Review email security awareness materials</li><li>Conduct follow-up simulation in 30 days</li>{% endfor %}</ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="report-card">
+    <div class="report-card-header"><h2><span class="section-number">5</span> <i class="fas fa-shield-alt"></i> Vigilant Reporters ({{ stats.reported }})</h2></div>
+    <div class="report-card-body">
+      <div class="editable-wrapper mb-4" data-field="reporters-intro"><span class="edit-indicator"><i class="fas fa-exclamation-triangle"></i> Temporary Only</span><p class="editable-content" contenteditable="true">The following employees demonstrated excellent vigilance by reporting the phishing email:</p></div>
+      <div class="reporters-grid">{% for reporter in stats.reporters %}<div class="reporter-item"><div class="reporter-avatar">{{ reporter.name[:1] }}</div><div class="reporter-info"><div class="reporter-name">{{ reporter.name }}</div><div class="reporter-email">{{ reporter.email }}</div></div><i class="fas fa-medal text-yellow-400"></i></div>{% else %}<div class="text-slate-400 col-span-full py-8 text-center"><i class="fas fa-inbox text-4xl mb-3 block opacity-50"></i>No reports received.</div>{% endfor %}</div>
+    </div>
+  </div>
+
+  <div class="report-card">
+    <div class="report-card-header"><h2><span class="section-number">6</span> <i class="fas fa-envelope-open-text"></i> Campaign Materials</h2>
+      <select id="templateSelector" class="bg-slate-700 text-white text-sm rounded-lg px-3 py-2 border border-slate-600 no-print"><option value="current" selected>Current Campaign Template</option>{% for t in all_templates %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}</select>
+    </div>
+    <div class="report-card-body">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div class="bg-slate-800 rounded-lg p-4"><div class="text-slate-400 text-xs uppercase tracking-wide mb-1">Subject Line</div><div class="text-white font-medium">{{ campaign.subject }}</div></div>
+        <div class="bg-slate-800 rounded-lg p-4"><div class="text-slate-400 text-xs uppercase tracking-wide mb-1">From Name</div><div class="text-white font-medium">{{ campaign.sender_name or 'Not specified' }}</div></div>
+        <div class="bg-slate-800 rounded-lg p-4"><div class="text-slate-400 text-xs uppercase tracking-wide mb-1">From Email</div><div class="text-white font-medium">{{ campaign.sender_email or 'Not specified' }}</div></div>
+      </div>
+      <div class="editable-wrapper mb-4" data-field="lure-detail"><span class="edit-indicator"><i class="fas fa-exclamation-triangle"></i> Temporary Only</span><div class="editable-content" contenteditable="true"><strong>Lure Detail:</strong> The email simulated a notification from {{ campaign.sender_name or 'an external service' }}. Key indicators included external sender domain and urgent call to action.</div></div>
+      <div class="text-slate-400 text-sm font-medium mb-3">Email Preview:</div>
+      <div id="emailPreview" class="email-preview-container p-4">{{ campaign.template_html | safe }}</div>
+      <div id="templateStorage" style="display:none;"><div id="tpl-current">{{ campaign.template_html | safe }}</div>{% for t in all_templates %}<div id="tpl-{{ t.id }}">{{ t.html_content | safe }}</div>{% endfor %}</div>
+    </div>
+  </div>
+
+  {% if landing_page_submissions %}
+  <div class="report-card">
+    <div class="report-card-header"><h2><span class="section-number">7</span> <i class="fas fa-user-secret"></i> Landing Page Submissions ({{ landing_page_submissions|length }})</h2></div>
+    <div class="report-card-body">
+      <div class="bg-yellow-900/30 border border-yellow-700 rounded-lg p-4 mb-6 no-print"><div class="flex items-center gap-3"><i class="fas fa-exclamation-triangle text-yellow-400 text-xl"></i><div><div class="text-yellow-300 font-semibold">Security Notice</div><div class="text-yellow-200/80 text-sm">Landing page submissions may contain sensitive data.</div></div></div></div>
+      <div class="overflow-x-auto">
+        <table class="modern-table">
+          <thead><tr><th>Email</th><th>Submitted At</th><th>IP Address</th><th>Data Captured</th></tr></thead>
+          <tbody>{% for submission in landing_page_submissions %}<tr><td>{{ submission.email }}</td><td>{{ submission.submitted_at.strftime('%Y-%m-%d %H:%M') if submission.submitted_at else 'N/A' }}</td><td><code class="bg-slate-700 px-2 py-1 rounded text-xs">{{ submission.ip_address }}</code></td><td>{% if submission.submitted_data %}<button onclick="toggleSubmissionData(this)" class="text-blue-400 hover:text-blue-300 text-sm"><i class="fas fa-eye mr-1"></i> View</button><pre class="hidden mt-2 text-xs bg-slate-800 p-3 rounded">{{ submission.submitted_data }}</pre>{% else %}<span class="text-slate-500">No data</span>{% endif %}</td></tr>{% endfor %}</tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="report-card">
+    <div class="report-card-body">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="editable-wrapper" data-field="prepared-by"><span class="edit-indicator"><i class="fas fa-exclamation-triangle"></i> Temporary Only</span><div class="editable-content" contenteditable="true"><p><strong>Prepared by:</strong> Security Awareness Team</p><p><strong>Date:</strong> {{ campaign.created_at.strftime('%d %B %Y') }}</p></div></div>
+        <div class="editable-wrapper" data-field="approved-by"><span class="edit-indicator"><i class="fas fa-exclamation-triangle"></i> Temporary Only</span><div class="editable-content" contenteditable="true"><p><strong>Reviewed by:</strong> [Click to add reviewer]</p><p><strong>Approved:</strong> [Click to add approval status]</p></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="floating-toolbar no-print">
+  <button onclick="enableCustomization()" id="customizeBtn" class="toolbar-btn secondary" title="Make temporary changes for export/print (not saved)"><i class="fas fa-pencil-alt"></i> <span>Customize</span></button>
+  <button onclick="copyReportForAI()" class="toolbar-btn secondary"><i class="fas fa-robot"></i> Copy for AI</button>
+  <a href="/api/export/campaign_xlsx?campaign_id={{ campaign.id }}" class="toolbar-btn secondary"><i class="fas fa-file-excel"></i> Excel</a>
+  <button onclick="window.print()" class="toolbar-btn primary"><i class="fas fa-print"></i> Print / PDF</button>
+</div>
+
+<script>
+let customizeMode = false;
+function enableCustomization() {
+  customizeMode = !customizeMode;
+  const btn = document.getElementById('customizeBtn');
+  const wrappers = document.querySelectorAll('.editable-wrapper');
+  if (customizeMode) { 
+    btn.classList.remove('secondary'); 
+    btn.classList.add('success'); 
+    btn.innerHTML = '<i class="fas fa-check"></i> <span>Done</span>'; 
+    wrappers.forEach(w => w.classList.add('editing')); 
+    showToast('Customize mode enabled - Changes are temporary and will not be saved', 'warning');
+  }
+  else { 
+    btn.classList.remove('success'); 
+    btn.classList.add('secondary'); 
+    btn.innerHTML = '<i class="fas fa-pencil-alt"></i> <span>Customize</span>'; 
+    wrappers.forEach(w => w.classList.remove('editing')); 
+    showToast('Customization mode disabled', 'info');
+  }
+}
+function showToast(message, type = 'info') {
+  // Fallback toast implementation if not defined in base
+  if (typeof toastInfo === 'function' && type === 'info') {
+    toastInfo(message);
+  } else if (typeof toastSuccess === 'function' && type === 'success') {
+    toastSuccess(message);
+  } else if (typeof toastWarning === 'function' && type === 'warning') {
+    toastWarning(message);
+  } else if (typeof toastError === 'function' && type === 'error') {
+    toastError(message);
+  } else {
+    console.log(`[${type.toUpperCase()}] ${message}`);
+  }
+}
+function toggleSubmissionData(btn) { const pre = btn.nextElementSibling; const isHidden = pre.classList.contains('hidden'); pre.classList.toggle('hidden'); btn.innerHTML = isHidden ? '<i class="fas fa-eye-slash mr-1"></i> Hide' : '<i class="fas fa-eye mr-1"></i> View'; }
+document.getElementById('templateSelector').addEventListener('change', function() { document.getElementById('emailPreview').innerHTML = document.getElementById('tpl-' + this.value).innerHTML; });
+function copyReportForAI() {
+  let text = "PHISHING SIMULATION CAMPAIGN REPORT\n" + "=".repeat(50) + "\n\n";
+  document.querySelectorAll('.meta-item').forEach(item => { text += item.querySelector('.meta-label').textContent + ": " + item.querySelector('.meta-value').textContent + "\n"; });
+  text += "\n";
+  document.querySelectorAll('.editable-content').forEach(el => { text += el.innerText.trim() + "\n\n"; });
+  navigator.clipboard.writeText("Please analyze this phishing simulation campaign report:\n\n" + text).then(() => toastSuccess('Report copied for AI')).catch(err => toastError('Failed: ' + err));
+}
+</script>
+{% endblock %}
+

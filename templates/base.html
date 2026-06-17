@@ -1,0 +1,725 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>{% block title %}PhishSim Dashboard{% endblock %}</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg fill='none' viewBox='0 0 48 48' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath clip-rule='evenodd' d='M12.0799 24L4 19.2479L9.95537 8.75216L18.04 13.4961L18.0446 4H29.9554L29.96 13.4961L38.0446 8.75216L44 19.2479L35.92 24L44 28.7521L38.0446 39.2479L29.96 34.5039L29.9554 44H18.0446L18.04 34.5039L9.95537 39.2479L4 28.7521L12.0799 24Z' fill='%23135bec' fill-rule='evenodd'/%3E%3C/svg%3E">
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries&v=2" data-no-warning"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary": "#135bec",
+              "background-light": "#f6f6f8",
+              "background-dark": "#101622",
+            },
+            fontFamily: {
+              "display": ["Inter", "sans-serif"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+    <script>
+      // Initialize Theme immediately to prevent FOUC
+      (function() {
+        const savedTheme = localStorage.getItem('theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const shouldBeDark = savedTheme === 'dark' || (!savedTheme && prefersDark);
+        
+        if (shouldBeDark) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      })();
+    </script>
+    <style>
+      .material-symbols-outlined {
+        font-family: 'Material Symbols Outlined';
+        font-weight: normal;
+        font-style: normal;
+        font-size: 24px;
+        line-height: 1;
+        letter-spacing: normal;
+        text-transform: none;
+        display: inline-block;
+        white-space: nowrap;
+        word-wrap: normal;
+        direction: ltr;
+        -webkit-font-feature-settings: 'liga';
+        -webkit-font-smoothing: antialiased;
+      }
+      @keyframes fade-in {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .animate-fade-in {
+        animation: fade-in 0.3s ease-out;
+      }
+      /* Toast Notification Styles */
+      #toast-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 99999;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        max-width: 400px;
+      }
+      .toast {
+        padding: 16px 20px;
+        border-radius: 8px;
+        color: white;
+        font-weight: 500;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        animation: slideIn 0.3s ease-out;
+        cursor: pointer;
+        min-width: 280px;
+      }
+      .toast:hover { opacity: 0.95; }
+      .toast.success { background: linear-gradient(135deg, #10b981, #059669); }
+      .toast.error { background: linear-gradient(135deg, #ef4444, #dc2626); }
+      .toast.warning { background: linear-gradient(135deg, #f59e0b, #d97706); }
+      .toast.info { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+      .toast i { font-size: 18px; }
+      .toast .toast-message { flex: 1; }
+      .toast .toast-close { 
+        opacity: 0.7; 
+        cursor: pointer;
+        font-size: 14px;
+      }
+      .toast .toast-close:hover { opacity: 1; }
+      @keyframes slideIn {
+        from { opacity: 0; transform: translateX(100px); }
+        to { opacity: 1; transform: translateX(0); }
+      }
+      @keyframes slideOut {
+        from { opacity: 1; transform: translateX(0); }
+        to { opacity: 0; transform: translateX(100px); }
+      }
+      /* Confirm Dialog Styles */
+      .confirm-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.6);
+        z-index: 99998;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: fadeIn 0.2s ease-out;
+      }
+      .confirm-dialog {
+        background: #1e293b;
+        border-radius: 12px;
+        padding: 24px;
+        max-width: 400px;
+        width: 90%;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+        animation: scaleIn 0.2s ease-out;
+      }
+      .confirm-dialog h3 {
+        color: #f1f5f9;
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 12px;
+      }
+      .confirm-dialog p {
+        color: #94a3b8;
+        margin-bottom: 20px;
+        line-height: 1.5;
+      }
+      .confirm-dialog input {
+        width: 100%;
+        background: #0f172a;
+        border: 1px solid #334155;
+        color: #f1f5f9;
+        padding: 10px 12px;
+        border-radius: 6px;
+        margin-bottom: 24px;
+        outline: none;
+      }
+      .confirm-dialog input:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+      }
+      .confirm-buttons {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+      }
+      .confirm-btn {
+        padding: 10px 20px;
+        border-radius: 6px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .confirm-btn.cancel {
+        background: #334155;
+        color: #94a3b8;
+        border: none;
+      }
+      .confirm-btn.cancel:hover { background: #475569; }
+      .confirm-btn.ok {
+        background: #ef4444;
+        color: white;
+        border: none;
+      }
+      .confirm-btn.ok:hover { background: #dc2626; }
+      .confirm-btn.ok.primary {
+        background: #3b82f6;
+      }
+      .confirm-btn.ok.primary:hover { background: #2563eb; }
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      @keyframes scaleIn {
+        from { opacity: 0; transform: scale(0.9); }
+        to { opacity: 1; transform: scale(1); }
+      }
+      /* Animation Utilities */
+      .animate-slide-up { animation: slideUp 0.4s ease-out forwards; }
+      .animate-scale-in { animation: scaleIn 0.3s ease-out forwards; }
+      .animate-pulse-slow { animation: pulse 3s infinite; }
+      
+      /* Glassmorphism & Modern UI */
+      :root {
+        --glass-panel-bg: rgba(255, 255, 255, 0.9);
+        --glass-card-bg: rgba(255, 255, 255, 0.7);
+        --glass-border: rgba(0, 0, 0, 0.1);
+        --glass-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      }
+
+      .dark {
+        --glass-panel-bg: rgba(30, 41, 59, 0.7);
+        --glass-card-bg: rgba(255, 255, 255, 0.03);
+        --glass-border: rgba(255, 255, 255, 0.08);
+        --glass-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+      }
+
+      .glass-panel {
+        background: var(--glass-panel-bg);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid var(--glass-border);
+        box-shadow: var(--glass-shadow);
+        color: inherit;
+      }
+      
+      .glass-card {
+        background: var(--glass-card-bg);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid var(--glass-border);
+        transition: all 0.3s ease;
+        box-shadow: var(--glass-shadow);
+        color: inherit;
+      }
+      
+      /* Micro-interactions */
+      .card-hover:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.2);
+        border-color: var(--glass-border);
+        background: var(--glass-card-bg);
+      }
+      
+      .dark .card-hover:hover {
+        box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+        border-color: rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.05);
+      }
+      
+      .btn-hover {
+        transition: all 0.2s ease;
+      }
+      .btn-hover:active {
+        transform: scale(0.96);
+      }
+      .btn-hover:hover {
+        filter: brightness(1.1);
+        box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
+      }
+      
+      .input-focus {
+        transition: all 0.2s ease;
+      }
+      .input-focus:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        background: rgba(15, 23, 42, 0.8);
+      }
+
+      @keyframes slideUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      @keyframes scaleIn {
+        from { opacity: 0; transform: scale(0.95); }
+        to { opacity: 1; transform: scale(1); }
+      }
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+      }
+
+      /* Sidebar collapse/expand */
+      #main-sidebar {
+        transition: width 0.25s ease, min-width 0.25s ease;
+        overflow: hidden;
+        width: 16rem; /* w-64 */
+        min-width: 16rem;
+      }
+      #main-sidebar.collapsed {
+        width: 4rem !important;
+        min-width: 4rem !important;
+      }
+      #main-sidebar .sidebar-label,
+      #main-sidebar .sidebar-section-label,
+      #main-sidebar .sidebar-user-label {
+        transition: opacity 0.15s ease, width 0.15s ease;
+        white-space: nowrap;
+        overflow: hidden;
+      }
+      #main-sidebar.collapsed .sidebar-label,
+      #main-sidebar.collapsed .sidebar-section-label,
+      #main-sidebar.collapsed .sidebar-user-label {
+        opacity: 0;
+        width: 0;
+        display: none;
+      }
+      #main-sidebar.collapsed .sidebar-brand-text {
+        opacity: 0;
+        width: 0;
+        display: none;
+      }
+      #main-sidebar .sidebar-nav-link {
+        justify-content: flex-start;
+      }
+      #main-sidebar.collapsed .sidebar-nav-link {
+        justify-content: center;
+        padding-left: 0;
+        padding-right: 0;
+      }
+      #main-sidebar.collapsed nav {
+        padding-left: 0.25rem;
+        padding-right: 0.25rem;
+      }
+      #main-sidebar.collapsed .sidebar-bottom {
+        padding-left: 0.25rem;
+        padding-right: 0.25rem;
+      }
+      #main-sidebar.collapsed .sidebar-bottom a,
+      #main-sidebar.collapsed .sidebar-bottom button {
+        justify-content: center;
+        padding-left: 0;
+        padding-right: 0;
+      }
+      #main-sidebar.collapsed .sidebar-bottom .sidebar-user-row {
+        justify-content: center;
+      }
+      #sidebar-toggle-btn {
+        transition: transform 0.25s ease;
+      }
+      #main-sidebar.collapsed #sidebar-toggle-btn i {
+        transform: rotate(180deg);
+      }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="font-display bg-slate-50 dark:bg-background-dark text-slate-900 dark:text-gray-100 dark:bg-[url('https://tailwindcss.com/_next/static/media/hero-dark.9a75e549.png')] bg-cover bg-center bg-no-repeat bg-fixed transition-colors duration-300">
+<div class="flex h-screen overflow-hidden">
+  <!-- Sidebar -->
+  {% block sidebar %}
+  <aside id="main-sidebar" class="flex-shrink-0 glass-panel border-r-0 flex flex-col shadow-2xl">
+    <!-- Header: logo + toggle -->
+    <div class="p-4 flex items-center justify-between border-b border-slate-200 dark:border-white/5 min-h-[4rem]">
+      <div class="flex items-center overflow-hidden">
+        <div class="bg-primary p-2 rounded-lg flex-shrink-0 shadow-lg shadow-blue-500/20">
+          <svg fill="none" class="w-5 h-5 text-white" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+            <path clip-rule="evenodd" d="M12.0799 24L4 19.2479L9.95537 8.75216L18.04 13.4961L18.0446 4H29.9554L29.96 13.4961L38.0446 8.75216L44 19.2479L35.92 24L44 28.7521L38.0446 39.2479L29.96 34.5039L29.9554 44H18.0446L18.04 34.5039L9.95537 39.2479L4 28.7521L12.0799 24Z" fill="currentColor" fill-rule="evenodd"></path>
+          </svg>
+        </div>
+        <span class="sidebar-brand-text ml-3 text-base font-bold text-slate-800 dark:text-slate-100 tracking-tight">PhishSim</span>
+      </div>
+      <button id="sidebar-toggle-btn" onclick="toggleSidebar()" title="Toggle sidebar"
+        class="flex-shrink-0 ml-1 p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-white/10 transition-colors">
+        <i class="fas fa-chevron-left text-xs"></i>
+      </button>
+    </div>
+
+    <nav class="flex-1 px-2 py-4 space-y-1 overflow-y-auto overflow-x-hidden">
+      <div class="mb-4">
+        <p class="sidebar-section-label px-3 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Management</p>
+        <a href="{{ url_for('dashboard') }}" title="Dashboard" class="sidebar-nav-link {% if request.endpoint == 'dashboard' %}bg-primary/90 text-white shadow-lg shadow-blue-500/20{% else %}text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-slate-200{% endif %} w-full flex items-center px-3 py-2.5 mb-0.5 rounded-lg transition-all duration-200 btn-hover group">
+          <i class="fas fa-chart-line flex-shrink-0 w-5 text-center group-hover:scale-110 transition-transform"></i>
+          <span class="sidebar-label font-medium ml-3">Dashboard</span>
+        </a>
+        <a href="{{ url_for('campaigns.list_campaigns') }}" title="Campaigns" class="sidebar-nav-link {% if 'campaigns' in request.endpoint %}bg-primary/90 text-white shadow-lg shadow-blue-500/20{% else %}text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-slate-200{% endif %} w-full flex items-center px-3 py-2.5 mb-0.5 rounded-lg transition-all duration-200 btn-hover group">
+          <i class="fas fa-envelope flex-shrink-0 w-5 text-center group-hover:scale-110 transition-transform"></i>
+          <span class="sidebar-label font-medium ml-3">Campaigns</span>
+        </a>
+        <a href="{{ url_for('templates.list_templates') }}" title="Templates" class="sidebar-nav-link {% if 'templates' in request.endpoint %}bg-primary/90 text-white shadow-lg shadow-blue-500/20{% else %}text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-slate-200{% endif %} w-full flex items-center px-3 py-2.5 mb-0.5 rounded-lg transition-all duration-200 btn-hover group">
+          <i class="fas fa-code flex-shrink-0 w-5 text-center group-hover:scale-110 transition-transform"></i>
+          <span class="sidebar-label font-medium ml-3">Templates</span>
+        </a>
+        <a href="{{ url_for('landing_pages') }}" title="Landing Pages" class="sidebar-nav-link {% if request.endpoint == 'landing_pages' %}bg-primary/90 text-white shadow-lg shadow-blue-500/20{% else %}text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-slate-200{% endif %} w-full flex items-center px-3 py-2.5 mb-0.5 rounded-lg transition-all duration-200 btn-hover group">
+          <i class="fas fa-pager flex-shrink-0 w-5 text-center group-hover:scale-110 transition-transform"></i>
+          <span class="sidebar-label font-medium ml-3">Landing Pages</span>
+        </a>
+        <a href="{{ url_for('targets_page') }}" title="Targets" class="sidebar-nav-link {% if request.endpoint == 'targets_page' %}bg-primary/90 text-white shadow-lg shadow-blue-500/20{% else %}text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-slate-200{% endif %} w-full flex items-center px-3 py-2.5 mb-0.5 rounded-lg transition-all duration-200 btn-hover group">
+          <i class="fas fa-users flex-shrink-0 w-5 text-center group-hover:scale-110 transition-transform"></i>
+          <span class="sidebar-label font-medium ml-3">Targets</span>
+        </a>
+        <a href="{{ url_for('historical_data_page') }}" title="Statistics by SBU" class="sidebar-nav-link {% if request.endpoint == 'historical_data_page' %}bg-primary/90 text-white shadow-lg shadow-blue-500/20{% else %}text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-slate-200{% endif %} w-full flex items-center px-3 py-2.5 mb-0.5 rounded-lg transition-all duration-200 btn-hover group">
+          <i class="fas fa-chart-bar flex-shrink-0 w-5 text-center group-hover:scale-110 transition-transform"></i>
+          <span class="sidebar-label font-medium ml-3">Statistics by SBU</span>
+        </a>
+        <a href="{{ url_for('analytics_page') }}" title="Analytics" class="sidebar-nav-link {% if request.endpoint == 'analytics_page' %}bg-primary/90 text-white shadow-lg shadow-blue-500/20{% else %}text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-slate-200{% endif %} w-full flex items-center px-3 py-2.5 mb-0.5 rounded-lg transition-all duration-200 btn-hover group">
+          <i class="fas fa-chart-pie flex-shrink-0 w-5 text-center group-hover:scale-110 transition-transform"></i>
+          <span class="sidebar-label font-medium ml-3">Analytics</span>
+        </a>
+      </div>
+      <div class="mb-4">
+        <p class="sidebar-section-label px-3 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Administration</p>
+        <a href="{{ url_for('audit_logs_page') }}" title="Audit Logs" class="sidebar-nav-link {% if request.endpoint == 'audit_logs_page' %}bg-primary/90 text-white shadow-lg shadow-blue-500/20{% else %}text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-slate-200{% endif %} w-full flex items-center px-3 py-2.5 mb-0.5 rounded-lg transition-all duration-200 btn-hover group">
+          <i class="fas fa-clipboard-list flex-shrink-0 w-5 text-center group-hover:scale-110 transition-transform"></i>
+          <span class="sidebar-label font-medium ml-3">Audit Logs</span>
+        </a>
+        <a href="{{ url_for('smtp_profiles') }}" title="SMTP Settings" class="sidebar-nav-link {% if request.endpoint == 'smtp_profiles' %}bg-primary/90 text-white shadow-lg shadow-blue-500/20{% else %}text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-slate-200{% endif %} w-full flex items-center px-3 py-2.5 mb-0.5 rounded-lg transition-all duration-200 btn-hover group">
+          <i class="fas fa-server flex-shrink-0 w-5 text-center group-hover:scale-110 transition-transform"></i>
+          <span class="sidebar-label font-medium ml-3">SMTP Settings</span>
+        </a>
+        <a href="{{ url_for('settings.settings_page') }}" title="System Settings" class="sidebar-nav-link {% if request.endpoint == 'settings.settings_page' %}bg-primary/90 text-white shadow-lg shadow-blue-500/20{% else %}text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-slate-200{% endif %} w-full flex items-center px-3 py-2.5 mb-0.5 rounded-lg transition-all duration-200 btn-hover group">
+          <i class="fas fa-cog flex-shrink-0 w-5 text-center group-hover:scale-110 transition-transform"></i>
+          <span class="sidebar-label font-medium ml-3">System Settings</span>
+        </a>
+        {% if session.get('user') in ADMIN_USERS %}
+        <a href="{{ url_for('users_page') }}" title="Manage Users" class="sidebar-nav-link {% if request.endpoint == 'users_page' %}bg-primary/90 text-white shadow-lg shadow-blue-500/20{% else %}text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-slate-200{% endif %} w-full flex items-center px-3 py-2.5 mb-0.5 rounded-lg transition-all duration-200 btn-hover group">
+          <i class="fas fa-users-cog flex-shrink-0 w-5 text-center group-hover:scale-110 transition-transform"></i>
+          <span class="sidebar-label font-medium ml-3">Manage Users</span>
+        </a>
+        <a href="{{ url_for('settings.backups_page') }}" title="Backups" class="sidebar-nav-link {% if request.endpoint == 'settings.backups_page' %}bg-primary/90 text-white shadow-lg shadow-blue-500/20{% else %}text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-slate-200{% endif %} w-full flex items-center px-3 py-2.5 mb-0.5 rounded-lg transition-all duration-200 btn-hover group">
+          <i class="fas fa-archive flex-shrink-0 w-5 text-center group-hover:scale-110 transition-transform"></i>
+          <span class="sidebar-label font-medium ml-3">Backups</span>
+        </a>
+        {% endif %}
+      </div>
+    </nav>
+
+    <div class="sidebar-bottom p-3 border-t border-slate-200 dark:border-white/5">
+      {% if session.get('user') %}
+      <div class="sidebar-user-row flex items-center px-3 py-2 mb-1 text-slate-600 dark:text-slate-400 text-sm overflow-hidden">
+        <i class="fas fa-user-circle flex-shrink-0 w-5 text-center"></i>
+        <span class="sidebar-user-label ml-3 truncate">{{ session.get('user') }}</span>
+      </div>
+      <button onclick="toggleGlobalTheme()" id="globalThemeToggle" title="Toggle theme" class="w-full flex items-center px-3 py-2 mb-0.5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-white/5 rounded-lg transition-colors btn-hover">
+        <i class="fas fa-sun flex-shrink-0 w-5 text-center"></i>
+        <span id="themeToggleText" class="sidebar-label ml-3">Light Mode</span>
+      </button>
+      <a href="{{ url_for('change_password') }}" title="Change Password" class="w-full flex items-center px-3 py-2 mb-0.5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-white/5 rounded-lg transition-colors btn-hover">
+        <i class="fas fa-key flex-shrink-0 w-5 text-center"></i>
+        <span class="sidebar-label ml-3">Change Password</span>
+      </a>
+      <a href="{{ url_for('logout') }}" title="Logout" class="w-full flex items-center px-3 py-2 text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-white/5 rounded-lg transition-colors btn-hover">
+        <i class="fas fa-sign-out-alt flex-shrink-0 w-5 text-center"></i>
+        <span class="sidebar-label ml-3">Logout</span>
+      </a>
+      {% endif %}
+    </div>
+  </aside>
+  {% endblock %}
+
+  <!-- Main Content -->
+  <main class="flex-1 min-w-0 overflow-auto bg-transparent">
+    <div class="{% block container_class %}p-8 max-w-7xl mx-auto{% endblock %}">
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+</div>
+
+<script>
+  // ============ SIDEBAR COLLAPSE ============
+  function toggleSidebar() {
+    const sidebar = document.getElementById('main-sidebar');
+    if (!sidebar) return;
+    const collapsed = sidebar.classList.toggle('collapsed');
+    localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0');
+  }
+
+  // Restore sidebar state on load
+  (function() {
+    if (localStorage.getItem('sidebarCollapsed') === '1') {
+      const sidebar = document.getElementById('main-sidebar');
+      if (sidebar) sidebar.classList.add('collapsed');
+    }
+  })();
+
+  // Theme Management
+  function toggleGlobalTheme() {
+    const html = document.documentElement;
+    const isDark = html.classList.toggle('dark');
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    updateThemeUI(isDark);
+    
+    // Dispatch event for other components (like Monaco) to listen to
+    window.dispatchEvent(new CustomEvent('themeChanged', { detail: { isDark } }));
+  }
+
+  function updateThemeUI(isDark) {
+    const btn = document.getElementById('globalThemeToggle');
+    const text = document.getElementById('themeToggleText');
+    const icon = btn ? btn.querySelector('i') : null;
+    
+    if (btn && text && icon) {
+      if (isDark) {
+        text.textContent = 'Light Mode';
+        icon.className = 'fas fa-sun flex-shrink-0 w-5 text-center';
+      } else {
+        text.textContent = 'Dark Mode';
+        icon.className = 'fas fa-moon flex-shrink-0 w-5 text-center';
+      }
+    }
+  }
+
+  // Initialize Theme UI
+  document.addEventListener('DOMContentLoaded', () => {
+    updateThemeUI(document.documentElement.classList.contains('dark'));
+  });
+
+  // ============ TOAST NOTIFICATION SYSTEM ============
+  (function() {
+    // Create toast container
+    if (!document.getElementById('toast-container')) {
+      const container = document.createElement('div');
+      container.id = 'toast-container';
+      document.body.appendChild(container);
+    }
+  })();
+
+  /**
+   * Show a toast notification
+   * @param {string} message - The message to display
+   * @param {string} type - Type: 'success', 'error', 'warning', 'info'
+   * @param {number} duration - Duration in ms (default 4000)
+   */
+  function showToast(message, type = 'info', duration = 4000) {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    const icons = {
+      success: 'fa-check-circle',
+      error: 'fa-times-circle',
+      warning: 'fa-exclamation-triangle',
+      info: 'fa-info-circle'
+    };
+
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `
+      <i class="fas ${icons[type] || icons.info}"></i>
+      <span class="toast-message">${message}</span>
+      <span class="toast-close"><i class="fas fa-times"></i></span>
+    `;
+
+    // Close on click
+    toast.querySelector('.toast-close').addEventListener('click', () => removeToast(toast));
+    toast.addEventListener('click', (e) => {
+      if (!e.target.closest('.toast-close')) removeToast(toast);
+    });
+
+    container.appendChild(toast);
+
+    // Auto remove
+    if (duration > 0) {
+      setTimeout(() => removeToast(toast), duration);
+    }
+
+    return toast;
+  }
+
+  function removeToast(toast) {
+    if (!toast || !toast.parentNode) return;
+    toast.style.animation = 'slideOut 0.3s ease-out forwards';
+    setTimeout(() => {
+      if (toast.parentNode) toast.parentNode.removeChild(toast);
+    }, 300);
+  }
+
+  /**
+   * Show a confirm dialog (replaces native confirm())
+   * @param {string} message - The message to display
+   * @param {object} options - { title, okText, cancelText, okClass }
+   * @returns {Promise<boolean>}
+   */
+  function showConfirm(message, options = {}) {
+    return new Promise((resolve) => {
+      const { 
+        title = 'Confirm', 
+        okText = 'OK', 
+        cancelText = 'Cancel',
+        okClass = '' // 'primary' for blue button
+      } = options;
+
+      const overlay = document.createElement('div');
+      overlay.className = 'confirm-overlay';
+      overlay.innerHTML = `
+        <div class="confirm-dialog">
+          <h3>${title}</h3>
+          <p>${message.replace(/\n/g, '<br>')}</p>
+          <div class="confirm-buttons">
+            <button class="confirm-btn cancel">${cancelText}</button>
+            <button class="confirm-btn ok ${okClass}">${okText}</button>
+          </div>
+        </div>
+      `;
+
+      const close = (result) => {
+        overlay.style.animation = 'fadeIn 0.2s ease-out reverse';
+        setTimeout(() => {
+          if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        }, 200);
+        resolve(result);
+      };
+
+      overlay.querySelector('.cancel').addEventListener('click', () => close(false));
+      overlay.querySelector('.ok').addEventListener('click', () => close(true));
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) close(false);
+      });
+
+      // ESC key to cancel
+      const escHandler = (e) => {
+        if (e.key === 'Escape') {
+          close(false);
+          document.removeEventListener('keydown', escHandler);
+        }
+      };
+      document.addEventListener('keydown', escHandler);
+
+      document.body.appendChild(overlay);
+      overlay.querySelector('.ok').focus();
+    });
+  }
+
+  /**
+   * Show a prompt dialog (replaces native prompt())
+   * @param {string} message - The message to display
+   * @param {string} defaultValue - Default input value
+   * @param {object} options - { title, okText, cancelText }
+   * @returns {Promise<string|null>} - Returns input value or null if cancelled
+   */
+  function showPrompt(message, defaultValue = '', options = {}) {
+    return new Promise((resolve) => {
+      const { 
+        title = 'Input Required', 
+        okText = 'OK', 
+        cancelText = 'Cancel'
+      } = options;
+
+      const overlay = document.createElement('div');
+      overlay.className = 'confirm-overlay';
+      overlay.innerHTML = `
+        <div class="confirm-dialog">
+          <h3>${title}</h3>
+          <p>${message.replace(/\n/g, '<br>')}</p>
+          <input type="text" class="prompt-input" value="${defaultValue}">
+          <div class="confirm-buttons">
+            <button class="confirm-btn cancel">${cancelText}</button>
+            <button class="confirm-btn ok primary">${okText}</button>
+          </div>
+        </div>
+      `;
+
+      const input = overlay.querySelector('.prompt-input');
+
+      const close = (result) => {
+        overlay.style.animation = 'fadeIn 0.2s ease-out reverse';
+        setTimeout(() => {
+          if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        }, 200);
+        resolve(result);
+      };
+
+      overlay.querySelector('.cancel').addEventListener('click', () => close(null));
+      
+      const submit = () => close(input.value);
+      overlay.querySelector('.ok').addEventListener('click', submit);
+      
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') submit();
+        if (e.key === 'Escape') close(null);
+      });
+
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) close(null);
+      });
+
+      document.body.appendChild(overlay);
+      input.focus();
+      input.select();
+    });
+  }
+
+  // Convenience functions
+  function toastSuccess(msg, duration) { return showToast(msg, 'success', duration); }
+  function toastError(msg, duration) { return showToast(msg, 'error', duration); }
+  function toastWarning(msg, duration) { return showToast(msg, 'warning', duration); }
+  function toastInfo(msg, duration) { return showToast(msg, 'info', duration); }
+
+  // ── Global fetch wrapper: catches SSL / network errors app-wide ───────────
+  (function() {
+    const _origFetch = window.fetch;
+    let _sslBannerShown = false;
+
+    window.fetch = function(url, options) {
+      return _origFetch(url, options).catch(function(err) {
+        if (err instanceof TypeError && err.message === 'Failed to fetch') {
+          if (!_sslBannerShown) {
+            _sslBannerShown = true;
+            // Show persistent SSL acceptance banner
+            const banner = document.createElement('div');
+            banner.id = 'ssl-warning-banner';
+            banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#b91c1c;color:#fff;padding:12px 20px;text-align:center;font-size:14px;font-weight:500;display:flex;align-items:center;justify-content:center;gap:12px;';
+            banner.innerHTML = `
+              <i class="fas fa-exclamation-triangle"></i>
+              <span>Connection refused — your browser is blocking requests to this server's SSL certificate.</span>
+              <a href="${window.location.origin}" target="_blank"
+                 style="background:#fff;color:#b91c1c;padding:4px 12px;border-radius:4px;font-weight:700;text-decoration:none;white-space:nowrap;"
+                 onclick="document.getElementById('ssl-warning-banner').remove();_sslBannerShown=false;">
+                Click here to accept the certificate &rarr;
+              </a>
+              <button onclick="document.getElementById('ssl-warning-banner').remove();_sslBannerShown=false;"
+                      style="background:transparent;border:1px solid rgba(255,255,255,0.5);color:#fff;padding:2px 8px;border-radius:4px;cursor:pointer;margin-left:8px;">
+                &times;
+              </button>`;
+            document.body.prepend(banner);
+          }
+        }
+        return Promise.reject(err);
+      });
+    };
+  })();
+</script>
+{% block modals %}{% endblock %}
+{% block scripts %}{% endblock %}
+</body>
+</html>

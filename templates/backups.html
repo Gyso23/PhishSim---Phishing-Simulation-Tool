@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+
+{% block title %}Backups - PhishSim{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto animate-fade-in space-y-6">
+	<div class="flex items-center justify-between">
+		<div>
+			<h1 class="text-2xl font-bold text-slate-900 dark:text-white">Backups</h1>
+			<p class="text-slate-500 dark:text-slate-400">Manage exports of your campaign data (create, download, restore, delete, upload).</p>
+		</div>
+		<div class="flex gap-2">
+			<button id="createBackupBtn" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg">Create Backup</button>
+			<label class="px-4 py-2 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer text-sm">
+				Upload
+				<input id="uploadInput" type="file" accept=".zip" class="hidden">
+			</label>
+		</div>
+	</div>
+
+	<div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden shadow-sm">
+		<div class="p-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
+			<div class="text-sm text-slate-600 dark:text-slate-300">Available backups</div>
+			<div class="text-xs text-slate-400">Stored in <code>backups/</code></div>
+		</div>
+
+		<div id="backupsContainer" class="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+
+		<div id="emptyState" class="hidden p-8 text-center text-slate-500">
+			<i class="fas fa-box-open text-4xl mb-3"></i>
+			<div>No backups yet. Click "Create Backup" or upload a zip to get started.</div>
+		</div>
+	</div>
+</div>
+
+<!-- Restore Modal -->
+<div id="restoreModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+	<div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-lg mx-4 p-6">
+		<h3 class="text-lg font-semibold mb-3 text-slate-900 dark:text-white">Restore Backup</h3>
+		<p class="text-sm text-slate-500 mb-4">Restoring will extract the DB copy from the zip. You can restore to a new file or replace the live database (dangerous).</p>
+
+		<div class="mb-3">
+			<label class="flex items-center gap-2"><input type="checkbox" id="replaceLive"> <span class="text-sm text-slate-600">Replace live DB (data/campaigns.db)</span></label>
+		</div>
+
+		<div class="flex justify-end gap-2">
+			<button onclick="closeRestoreModal()" class="px-4 py-2 rounded bg-slate-100 dark:bg-slate-700">Cancel</button>
+			<button id="confirmRestoreBtn" class="px-4 py-2 rounded bg-emerald-600 text-white">Restore</button>
+		</div>
+	</div>
+</div>
+
+<style>
+	.backup-card { transition: all 0.12s; }
+	.backup-card:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(0,0,0,0.08); }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+	loadBackups();
+	document.getElementById('createBackupBtn').addEventListener('click', createBackup);
+	document.getElementById('uploadInput').addEventListener('change', handleUpload);
+});
+
+let selectedBackupForRestore = null;
+
+async function loadBackups() {
+	const resp = await fetch('/settings/backups/list');
+	if (!resp.ok) return;
+	const files = await resp.json();
+	const container = document.getElementById('backupsContainer');
+	const empty = document.getElementById('emptyState');
+	container.innerHTML = '';
+	if (!files || files.length === 0) {
+		empty.classList.remove('hidden');
+		return;
+	}
+	empty.classList.add('hidden');
+
+	files.forEach(f => {
+		const card = document.createElement('div');
+		card.className = 'backup-card bg-slate-50 dark:bg-slate-900 p-4 rounded-lg border border-slate-200 dark:border-slate-700 flex flex-col justify-between';
+
+		const name = document.createElement('div');
+		name.className = 'font-medium text-slate-900 dark:text-white truncate cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors';
+		name.textContent = f.name;
+		name.title = 'Click to preview this backup';
+		name.onclick = () => window.location = '/settings/backups/preview/' + encodeURIComponent(f.name);
+
+		const meta = document.createElement('div');
+		meta.className = 'text-xs text-slate-500 mt-2';
+		const sizeKb = Math.round((f.size||0)/1024);
+		meta.textContent = `${sizeKb} KB • ${new Date(f.modified).toLocaleString()}`;
+
+		const actions = document.createElement('div');
+		actions.className = 'mt-4 flex gap-2';
+
+		const preview = document.createElement('button');
+		preview.className = 'px-3 py-1 rounded bg-slate-700 text-white text-sm flex items-center gap-1';
+		preview.innerHTML = '<i class="fas fa-eye"></i> Preview';
+		preview.onclick = () => window.location = '/settings/backups/preview/' + encodeURIComponent(f.name);
+
+		const dl = document.createElement('button');
+		dl.className = 'px-3 py-1 rounded bg-blue-600 text-white text-sm';
+		dl.textContent = 'Download';
+		dl.onclick = () => window.location = '/settings/backups/download/' + encodeURIComponent(f.name);
+
+		const restore = document.createElement('button');
+		restore.className = 'px-3 py-1 rounded bg-emerald-600 text-white text-sm';
+		restore.textContent = 'Restore';
+		restore.onclick = () => openRestoreModal(f.name);
+
+		const del = document.createElement('button');
+		del.className = 'px-3 py-1 rounded bg-red-600 text-white text-sm';
+		del.textContent = 'Delete';
+		del.onclick = () => deleteBackup(f.name);
+
+		actions.appendChild(preview);
+		actions.appendChild(dl);
+		actions.appendChild(restore);
+		actions.appendChild(del);
+
+		card.appendChild(name);
+		card.appendChild(meta);
+		card.appendChild(actions);
+
+		container.appendChild(card);
+	});
+}
+
+async function createBackup() {
+	if (!confirm('Create a new backup now?')) return;
+	try {
+		const resp = await fetch('/settings/backups/create', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({}) });
+		const data = await resp.json();
+		if (data.success) {
+			toastSuccess('Backup created: ' + data.backup);
+			loadBackups();
+		} else {
+			toastError('Failed to create backup: ' + (data.error||''));
+		}
+	} catch (e) {
+		toastError('Error: ' + e.message);
+	}
+}
+
+function handleUpload(ev) {
+	const f = ev.target.files && ev.target.files[0];
+	if (!f) return;
+	if (!f.name.toLowerCase().endsWith('.zip')) { toastError('Only .zip files allowed'); return; }
+	uploadFile(f);
+}
+
+async function uploadFile(file) {
+	const fd = new FormData();
+	fd.append('file', file, file.name);
+	try {
+		const resp = await fetch('/settings/backups/upload', { method: 'POST', body: fd });
+		const data = await resp.json();
+		if (data.success) {
+			toastSuccess('Uploaded: ' + data.name);
+			loadBackups();
+		} else {
+			toastError('Upload failed: ' + (data.error || ''));
+		}
+	} catch (e) {
+		toastError('Error: ' + e.message);
+	}
+}
+
+function openRestoreModal(name) {
+	selectedBackupForRestore = name;
+	document.getElementById('replaceLive').checked = false;
+	document.getElementById('restoreModal').classList.remove('hidden');
+	document.getElementById('confirmRestoreBtn').onclick = confirmRestore;
+}
+
+function closeRestoreModal(){
+	selectedBackupForRestore = null;
+	document.getElementById('restoreModal').classList.add('hidden');
+}
+
+async function confirmRestore(){
+	if (!selectedBackupForRestore) return;
+	const replace = document.getElementById('replaceLive').checked;
+
+	const ok = await showConfirm('Are you sure you want to restore this backup?' + (replace ? '\nThis will replace the live database.' : ''), { title: 'Confirm Restore', okText: 'Restore', cancelText: 'Cancel', okClass: 'primary'});
+	if (!ok) return;
+
+	try {
+		const resp = await fetch('/settings/backups/restore', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ name: selectedBackupForRestore, replace_live: replace }) });
+		const data = await resp.json();
+		if (data.success) {
+			toastSuccess('Restored to: ' + data.restored_to);
+			closeRestoreModal();
+			loadBackups();
+		} else {
+			toastError('Restore failed: ' + (data.error || ''));
+		}
+	} catch (e) {
+		toastError('Error: ' + e.message);
+	}
+}
+
+async function deleteBackup(name) {
+	const ok = await showConfirm('Delete backup ' + name + '?', { title: 'Confirm Delete', okText: 'Delete', cancelText: 'Cancel' });
+	if (!ok) return;
+	try {
+		const resp = await fetch('/settings/backups/delete', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ name }) });
+		const data = await resp.json();
+		if (data.success) {
+			toastSuccess('Deleted ' + name);
+			loadBackups();
+		} else {
+			toastError('Delete failed: ' + (data.error||''));
+		}
+	} catch (e) {
+		toastError('Error: ' + e.message);
+	}
+}
+</script>
+
+{% endblock %}
+

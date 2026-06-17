@@ -1,0 +1,296 @@
+{% extends "base.html" %}
+
+{% block title %}Campaigns - PhishSim{% endblock %}
+
+{% block content %}
+<!-- Toast Notification Container -->
+<div id="toastContainer" class="fixed top-5 right-5 z-50 flex flex-col gap-3"></div>
+
+<div class="space-y-6 animate-fade-in">
+  <div class="flex justify-between items-center">
+    <div>
+      <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100">Campaigns</h1>
+      <p class="text-slate-500 dark:text-slate-400">Manage and monitor phishing simulations</p>
+    </div>
+    <a href="{{ url_for('campaigns.create_campaign_step1') }}" class="flex items-center px-5 py-2 bg-primary hover:bg-blue-500 text-white rounded-lg font-medium shadow-lg shadow-blue-900/20 transition-all hover:scale-105 btn-hover">
+      <i class="fas fa-rocket mr-2"></i> New Campaign
+    </a>
+  </div>
+
+  <!-- Search and Filter Bar -->
+  <div class="glass-card rounded-xl border border-slate-200 dark:border-white/10 p-4 shadow-lg">
+    <div class="flex flex-wrap items-center gap-4">
+      <div class="relative flex-1 min-w-[300px]">
+        <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 dark:text-slate-500"></i>
+        <input 
+          type="text" 
+          id="campaignSearch"
+          placeholder="Search campaigns by name..." 
+          class="w-full glass-panel border border-slate-200 dark:border-white/10 rounded-lg pl-10 pr-4 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 input-focus"
+          onkeyup="filterCampaigns()"
+        />
+      </div>
+      <select id="statusFilter" onchange="filterCampaigns()" class="glass-panel border border-slate-200 dark:border-white/10 rounded-lg px-4 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 input-focus">
+        <option value="" class="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">All Status</option>
+        <option value="running" class="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Running</option>
+        <option value="completed" class="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Completed</option>
+        <option value="draft" class="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Draft</option>
+      </select>
+      <div class="text-sm text-slate-500 dark:text-slate-400">
+        <span id="campaignCount">{{ campaigns|length }}</span> campaigns
+      </div>
+    </div>
+  </div>
+
+  <div id="campaignsList" class="grid gap-4">
+    {% for c in campaigns %}
+    <div class="campaign-card glass-card rounded-xl border border-slate-200 dark:border-white/10 p-6 flex flex-col md:flex-row items-start md:items-center justify-between shadow-lg hover:border-blue-500/30 transition-all card-hover cursor-pointer" 
+         data-name="{{ c.name|lower }}" data-status="{{ c.status }}"
+         onclick="{% if c.job_id %}window.location.href='{{ url_for('campaigns.campaign_status_page', job_id=c.job_id) }}'{% endif %}">
+      <div class="flex-1 min-w-0 mr-6">
+        <div class="flex items-center mb-2">
+          <h3 class="text-lg font-semibold text-slate-900 dark:text-slate-200 truncate">{{ c.name }}</h3>
+          <span class="ml-3 px-2.5 py-0.5 rounded-full text-xs font-medium border
+            {% if c.status == 'running' %}bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20
+            {% elif c.status == 'completed' %}bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20
+            {% elif c.status == 'draft' %}bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20
+            {% else %}bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20{% endif %}">
+            {% if c.status == 'running' %}<span class="w-1.5 h-1.5 bg-emerald-500 dark:bg-emerald-400 rounded-full mr-1.5 animate-pulse inline-block"></span>{% endif %}
+            {{ c.status|capitalize }}
+          </span>
+          {% if c.campaign_type %}
+          <span class="ml-2 px-2 py-0.5 rounded text-xs font-medium bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+            {{ c.campaign_type }}
+          </span>
+          {% endif %}
+          {% if c.reminders_enabled %}
+          <span class="ml-2 px-2 py-0.5 rounded text-xs font-medium bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border border-yellow-500/20" title="Reminders Enabled">
+            <i class="fas fa-bell"></i> Reminders
+          </span>
+          {% endif %}
+        </div>
+        <div class="flex items-center text-sm text-slate-500 dark:text-slate-400 space-x-6">
+          <span class="flex items-center"><i class="far fa-calendar mr-2"></i> {{ c.created_at.strftime('%Y-%m-%d') if c.created_at else 'N/A' }}</span>
+          <span class="flex items-center"><i class="fas fa-paper-plane mr-2"></i> {{ c.sent_count or 0 }} Sent</span>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-6 mt-4 md:mt-0 w-full md:w-auto">
+        <!-- Click Rate (Hero Metric) -->
+        <div class="flex flex-col items-center px-4 border-l border-slate-200 dark:border-white/10">
+          <span class="text-2xl font-bold text-orange-500 dark:text-orange-400">
+            {% if c.sent_count and c.sent_count > 0 %}
+              {{ ((c.clicked_count or 0) / c.sent_count * 100)|round(1) }}%
+            {% else %}
+              0%
+            {% endif %}
+          </span>
+          <span class="text-xs text-slate-500 uppercase">Click Rate</span>
+        </div>
+        
+        <!-- Compromise Rate -->
+        <div class="flex flex-col items-center px-4 border-l border-slate-200 dark:border-white/10">
+          <span class="text-2xl font-bold text-red-500 dark:text-red-400">
+            {% if c.sent_count and c.sent_count > 0 %}
+              {{ ((c.compromised_count or 0) / c.sent_count * 100)|round(1) }}%
+            {% else %}
+              0%
+            {% endif %}
+          </span>
+          <span class="text-xs text-slate-500 uppercase">Compromised</span>
+        </div>
+        
+        <div class="flex space-x-2" onclick="event.stopPropagation()">
+          {% if c.status == 'draft' %}
+            <a href="{{ url_for('campaigns.create_campaign_step2') }}" class="p-2 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-lg transition-colors border border-emerald-500/20 btn-hover" title="Continue Editing">
+              <i class="fas fa-play"></i>
+            </a>
+          {% endif %}
+          <button onclick="cloneCampaign('{{ c.id }}', '{{ c.name }}')" class="p-2 text-purple-600 dark:text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 rounded-lg transition-colors border border-purple-500/20 btn-hover" title="Clone Campaign">
+            <i class="fas fa-copy"></i>
+          </button>
+          <button onclick="deleteCampaign('{{ c.id }}', '{{ c.name }}')" class="p-2 text-red-600 dark:text-red-400 bg-red-500/10 hover:bg-red-500/20 rounded-lg transition-colors border border-red-500/20 btn-hover" title="Delete Campaign">
+            <i class="fas fa-trash"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="glass-card rounded-xl border border-slate-200 dark:border-white/10 p-12 text-center shadow-lg">
+      <i class="fas fa-bullhorn text-6xl text-slate-400 dark:text-slate-600 mb-4"></i>
+      <p class="text-slate-500 dark:text-slate-400 mb-4">No campaigns yet. Create your first phishing simulation.</p>
+      <a href="{{ url_for('campaigns.create_campaign_step1') }}" class="inline-flex items-center px-4 py-2 bg-primary hover:bg-blue-500 text-white rounded-lg font-medium btn-hover">
+        <i class="fas fa-plus mr-2"></i> Create Campaign
+      </a>
+    </div>
+    {% endfor %}
+  </div>
+  
+  <!-- No Results Message (Hidden by default) -->
+  <div id="noResults" class="hidden glass-card rounded-xl border border-slate-200 dark:border-white/10 p-12 text-center shadow-lg">
+    <i class="fas fa-search text-4xl text-slate-400 dark:text-slate-600 mb-4"></i>
+    <p class="text-slate-500 dark:text-slate-400">No campaigns match your search</p>
+  </div>
+</div>
+
+<style>
+  .toast {
+    padding: 14px 20px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 300px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    animation: slideIn 0.3s ease-out;
+    backdrop-filter: blur(10px);
+  }
+  .toast-success { background: linear-gradient(135deg, rgba(34, 197, 94, 0.9), rgba(22, 163, 74, 0.9)); border: 1px solid rgba(34, 197, 94, 0.5); }
+  .toast-error { background: linear-gradient(135deg, rgba(239, 68, 68, 0.9), rgba(185, 28, 28, 0.9)); border: 1px solid rgba(239, 68, 68, 0.5); }
+  .toast-info { background: linear-gradient(135deg, rgba(59, 130, 246, 0.9), rgba(37, 99, 235, 0.9)); border: 1px solid rgba(59, 130, 246, 0.5); }
+  @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
+  .toast.hiding { animation: slideOut 0.3s ease-in forwards; }
+</style>
+
+<script>
+// Toast notification system
+function showToast(message, type = 'info', duration = 4000) {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  
+  const icons = { success: 'fa-check-circle', error: 'fa-exclamation-circle', info: 'fa-info-circle' };
+  toast.innerHTML = `
+    <i class="fas ${icons[type]} text-white text-lg"></i>
+    <span class="text-white font-medium">${message}</span>
+  `;
+  
+  container.appendChild(toast);
+  setTimeout(() => { toast.classList.add('hiding'); setTimeout(() => toast.remove(), 300); }, duration);
+}
+
+// Filter campaigns
+function filterCampaigns() {
+  const searchTerm = document.getElementById('campaignSearch').value.toLowerCase();
+  const statusFilter = document.getElementById('statusFilter').value;
+  const cards = document.querySelectorAll('.campaign-card');
+  let visibleCount = 0;
+  
+  cards.forEach(card => {
+    const name = card.dataset.name;
+    const status = card.dataset.status;
+    const matchesSearch = name.includes(searchTerm);
+    const matchesStatus = !statusFilter || status === statusFilter;
+    
+    if (matchesSearch && matchesStatus) {
+      card.classList.remove('hidden');
+      visibleCount++;
+    } else {
+      card.classList.add('hidden');
+    }
+  });
+  
+  document.getElementById('campaignCount').textContent = visibleCount;
+  document.getElementById('noResults').classList.toggle('hidden', visibleCount > 0 || cards.length === 0);
+}
+
+// Modal system
+function showModal(title, message, icon, iconBg, confirmText, confirmClass, onConfirm) {
+  const modal = document.getElementById('confirmModal');
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalMessage').textContent = message;
+  document.getElementById('modalIcon').className = `w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center ${iconBg}`;
+  document.getElementById('modalIcon').innerHTML = `<i class="fas ${icon} text-2xl"></i>`;
+  const btn = document.getElementById('modalConfirmBtn');
+  btn.textContent = confirmText;
+  btn.className = `flex-1 px-4 py-2.5 ${confirmClass} text-white rounded-lg font-medium transition-colors`;
+  btn.onclick = onConfirm;
+  modal.classList.remove('hidden');
+}
+
+function closeModal() {
+  document.getElementById('confirmModal').classList.add('hidden');
+}
+
+// Delete campaign
+function deleteCampaign(campaignId, campaignName) {
+  showModal(
+    'Delete Campaign?',
+    `Are you sure you want to delete "${campaignName}"? This action cannot be undone.`,
+    'fa-trash text-red-400',
+    'bg-red-500/10',
+    'Delete',
+    'bg-red-600 hover:bg-red-500',
+    () => {
+      closeModal();
+      fetch(`/campaigns/delete/${campaignId}`, { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success) {
+            showToast('Campaign deleted successfully', 'success');
+            setTimeout(() => location.reload(), 1000);
+          } else {
+            showToast('Failed to delete: ' + data.message, 'error');
+          }
+        })
+        .catch(err => showToast('Error: ' + err, 'error'));
+    }
+  );
+}
+
+// Clone campaign
+function cloneCampaign(campaignId, campaignName) {
+  showModal(
+    'Clone Campaign?',
+    `Create a copy of "${campaignName}" with the same template and settings?`,
+    'fa-copy text-purple-400',
+    'bg-purple-500/10',
+    'Clone',
+    'bg-purple-600 hover:bg-purple-500',
+    () => {
+      closeModal();
+      fetch(`/campaigns/clone/${campaignId}`, { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success) {
+            showToast('Campaign cloned! Redirecting to edit...', 'success');
+            setTimeout(() => window.location.href = '/campaigns/create_step2', 1000);
+          } else {
+            showToast('Failed to clone: ' + data.message, 'error');
+          }
+        })
+        .catch(err => showToast('Error: ' + err, 'error'));
+    }
+  );
+}
+
+// Close modal on outside click
+document.getElementById('confirmModal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+</script>
+{% endblock %}
+
+{% block modals %}
+<!-- Confirmation Modal -->
+<div id="confirmModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 animate-fade-in">
+  <div class="glass-panel rounded-2xl border border-slate-200 dark:border-white/10 p-6 w-full max-w-md shadow-2xl bg-white dark:bg-slate-900">
+    <div class="text-center mb-6">
+      <div id="modalIcon" class="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center bg-red-500/10">
+        <i class="fas fa-trash text-2xl text-red-600 dark:text-red-400"></i>
+      </div>
+      <h3 id="modalTitle" class="text-xl font-semibold text-slate-900 dark:text-white mb-2">Delete Campaign?</h3>
+      <p id="modalMessage" class="text-slate-500 dark:text-slate-400">This action cannot be undone.</p>
+    </div>
+    <div class="flex gap-3">
+      <button onclick="closeModal()" class="flex-1 px-4 py-2.5 bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-slate-700 dark:text-white rounded-lg font-medium transition-colors border border-slate-200 dark:border-white/10">
+        Cancel
+      </button>
+      <button id="modalConfirmBtn" onclick="" class="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-lg font-medium transition-colors shadow-lg shadow-red-900/20">
+        Delete
+      </button>
+    </div>
+  </div>
+</div>
+{% endblock %}

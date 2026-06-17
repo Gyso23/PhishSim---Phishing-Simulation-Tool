@@ -1,0 +1,284 @@
+{% extends "base.html" %}
+
+{% block title %}Audit Logs - PhishSim{% endblock %}
+
+{% block content %}
+<div class="animate-fade-in">
+    <!-- Header -->
+    <div class="mb-8 flex justify-between items-center">
+        <div>
+            <h1 class="text-3xl font-bold text-slate-900 dark:text-white mb-2">Audit Logs</h1>
+            <p class="text-slate-500 dark:text-slate-400">Track all user actions and system events</p>
+        </div>
+        <div class="flex gap-3">
+            <button onclick="refreshLogs()" class="bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-white px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 border border-slate-300 dark:border-slate-600 shadow-sm">
+                <i class="fas fa-sync-alt"></i>
+                Refresh
+            </button>
+            <button onclick="exportLogs()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-blue-600/20">
+                <i class="fas fa-download"></i>
+                Export
+            </button>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-xl p-5 mb-6 shadow-sm">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                    <i class="fas fa-user text-slate-500 mr-1"></i> User
+                </label>
+                <select id="userFilter" onchange="refreshLogs()" class="w-full bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                    <option value="">All Users</option>
+                    <option value="admin">admin</option>
+                    <option value="security">security</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                    <i class="fas fa-bolt text-slate-500 mr-1"></i> Action
+                </label>
+                <select id="actionFilter" onchange="refreshLogs()" class="w-full bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                    <option value="">All Actions</option>
+                    <option value="LOGIN_SUCCESS">Login Success</option>
+                    <option value="LOGIN_FAILED">Login Failed</option>
+                    <option value="LOGOUT">Logout</option>
+                    <option value="VIEW_DASHBOARD">View Dashboard</option>
+                    <option value="EXPORT_DATA">Export Data</option>
+                    <option value="UPDATE_RESULT">Update Result</option>
+                    <option value="ADD_TARGET">Add Target</option>
+                    <option value="DELETE_TARGET">Delete Target</option>
+                    <option value="BULK_ADD_TARGETS">Bulk Add Targets</option>
+                    <option value="BULK_DELETE_TARGETS">Bulk Delete Targets</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                    <i class="fas fa-list-ol text-slate-500 mr-1"></i> Limit
+                </label>
+                <select id="limitFilter" onchange="refreshLogs()" class="w-full bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                    <option value="50">Last 50</option>
+                    <option value="100" selected>Last 100</option>
+                    <option value="200">Last 200</option>
+                    <option value="500">Last 500</option>
+                </select>
+            </div>
+            <div class="flex items-end">
+                <div class="w-full bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700/50 rounded-xl px-4 py-2.5 text-center">
+                    <span class="text-slate-500 dark:text-slate-400 text-sm">Showing </span>
+                    <span id="logCount" class="text-slate-900 dark:text-white font-bold text-lg">0</span>
+                    <span class="text-slate-500 dark:text-slate-400 text-sm"> entries</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Logs Table -->
+    <div class="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-xl overflow-hidden shadow-sm">
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700/50">
+                        <th class="px-4 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Timestamp</th>
+                        <th class="px-4 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">User</th>
+                        <th class="px-4 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Action</th>
+                        <th class="px-4 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">IP Address</th>
+                        <th class="px-4 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Path</th>
+                        <th class="px-4 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Details</th>
+                        <th class="px-4 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="logsBody" class="divide-y divide-slate-200 dark:divide-slate-700/50">
+                    <!-- Logs will be inserted here -->
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Empty State -->
+        <div id="emptyState" class="hidden py-16 text-center">
+            <div class="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-700/50 flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-clipboard-list text-2xl text-slate-500"></i>
+            </div>
+            <p class="text-slate-400 font-medium">No audit logs found</p>
+            <p class="text-slate-500 text-sm mt-1">User actions will appear here</p>
+        </div>
+        
+        <!-- Loading State -->
+        <div id="loadingState" class="hidden py-16 text-center">
+            <div class="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p class="text-slate-400">Loading logs...</p>
+        </div>
+    </div>
+</div>
+
+<script>
+let logsData = [];
+
+function formatTimestamp(isoString) {
+    const date = new Date(isoString);
+    return date.toLocaleString('en-GB', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    });
+}
+
+function getActionBadge(action) {
+    const actionConfig = {
+        'LOGIN_SUCCESS': { color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30', icon: 'fa-sign-in-alt' },
+        'LOGIN_FAILED': { color: 'bg-red-500/20 text-red-400 border-red-500/30', icon: 'fa-exclamation-triangle' },
+        'LOGOUT': { color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30', icon: 'fa-sign-out-alt' },
+        'VIEW_DASHBOARD': { color: 'bg-blue-500/20 text-blue-400 border-blue-500/30', icon: 'fa-chart-line' },
+        'EXPORT_DATA': { color: 'bg-purple-500/20 text-purple-400 border-purple-500/30', icon: 'fa-download' },
+        'UPDATE_RESULT': { color: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30', icon: 'fa-edit' },
+        'ADD_TARGET': { color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30', icon: 'fa-user-plus' },
+        'DELETE_TARGET': { color: 'bg-red-500/20 text-red-400 border-red-500/30', icon: 'fa-user-minus' },
+        'BULK_ADD_TARGETS': { color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30', icon: 'fa-users' },
+        'BULK_DELETE_TARGETS': { color: 'bg-red-500/20 text-red-400 border-red-500/30', icon: 'fa-users-slash' },
+        'CREATE_CAMPAIGN': { color: 'bg-blue-500/20 text-blue-400 border-blue-500/30', icon: 'fa-bullhorn' },
+    };
+    
+    const config = actionConfig[action] || { color: 'bg-slate-500/20 text-slate-400 border-slate-500/30', icon: 'fa-circle' };
+    return `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium ${config.color} border"><i class="fas ${config.icon}"></i>${action}</span>`;
+}
+
+function getStatusBadge(success) {
+    if (success) {
+        return '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400"><i class="fas fa-check-circle"></i></span>';
+    } else {
+        return '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-red-500/10 text-red-400"><i class="fas fa-times-circle"></i></span>';
+    }
+}
+
+function renderLogs(logs) {
+    const tbody = document.getElementById('logsBody');
+    const emptyState = document.getElementById('emptyState');
+    const logCount = document.getElementById('logCount');
+    
+    logCount.textContent = logs.length;
+    
+    if (logs.length === 0) {
+        tbody.innerHTML = '';
+        emptyState.classList.remove('hidden');
+        return;
+    }
+    
+    emptyState.classList.add('hidden');
+    
+    tbody.innerHTML = logs.map(log => `
+        <tr class="hover:bg-slate-700/30 transition-colors">
+            <td class="px-4 py-3 text-sm text-slate-300 whitespace-nowrap">
+                <i class="far fa-clock mr-2 text-slate-500"></i>
+                ${formatTimestamp(log.timestamp)}
+            </td>
+            <td class="px-4 py-3 text-sm">
+                <span class="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg bg-slate-700/50 text-slate-200">
+                    <div class="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-xs font-semibold">
+                        ${(String(log.user || 'A')).charAt(0).toUpperCase()}
+                    </div>
+                    ${escapeHtml(String(log.user || 'anonymous'))}
+                </span>
+            </td>
+            <td class="px-4 py-3 text-sm">
+                ${getActionBadge(log.action)}
+            </td>
+            <td class="px-4 py-3 text-sm text-slate-400 font-mono text-xs">
+                ${log.ip || '-'}
+            </td>
+            <td class="px-4 py-3 text-sm font-mono text-xs">
+                <span class="text-blue-400">${escapeHtml(log.method || '')}</span> <span class="text-slate-400">${escapeHtml(log.path || '-')}</span>
+            </td>
+            <td class="px-4 py-3 text-sm text-slate-300 max-w-xs truncate" title="${escapeHtml(log.details || '')}">
+                ${escapeHtml(log.details || '-')}
+            </td>
+            <td class="px-4 py-3 text-sm text-center">
+                ${getStatusBadge(log.success !== false)}
+            </td>
+        </tr>
+    `).join('');
+}
+
+async function refreshLogs() {
+    const userFilter = document.getElementById('userFilter').value;
+    const actionFilter = document.getElementById('actionFilter').value;
+    const limit = document.getElementById('limitFilter').value;
+    
+    const params = new URLSearchParams();
+    params.append('limit', limit);
+    if (userFilter) params.append('user', userFilter);
+    if (actionFilter) params.append('action', actionFilter);
+    
+    try {
+        const response = await fetch(`/api/audit/logs?${params.toString()}`);
+        if (!response.ok) throw new Error('Network response was not ok');
+        const data = await response.json();
+        logsData = data.logs || [];
+        renderLogs(logsData);
+    } catch (error) {
+        console.error('Error fetching logs:', error);
+        document.getElementById('logsBody').innerHTML = `
+            <tr>
+                <td colspan="7" class="px-4 py-8 text-center text-red-400">
+                    <div class="flex flex-col items-center justify-center">
+                        <div class="flex items-center mb-2">
+                            <i class="fas fa-exclamation-circle mr-2"></i>
+                            <span class="font-medium">Error loading logs</span>
+                        </div>
+                        <p class="text-sm text-red-400/70">${escapeHtml(error.message)}</p>
+                    </div>
+                </td>
+            </tr>
+        `;
+        document.getElementById('loadingState').classList.add('hidden');
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function exportLogs() {
+    if (logsData.length === 0) {
+        toastWarning('No logs to export');
+        return;
+    }
+    
+    // Convert to CSV
+    const headers = ['Timestamp', 'User', 'Action', 'IP', 'Method', 'Path', 'Details', 'Success'];
+    const csvContent = [
+        headers.join(','),
+        ...logsData.map(log => [
+            `"${log.timestamp}"`,
+            `"${log.user || ''}"`,
+            `"${log.action || ''}"`,
+            `"${log.ip || ''}"`,
+            `"${log.method || ''}"`,
+            `"${log.path || ''}"`,
+            `"${(log.details || '').replace(/"/g, '""')}"`,
+            log.success !== false ? 'Yes' : 'No'
+        ].join(','))
+    ].join('\n');
+    
+    // Download
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `audit_logs_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+}
+
+// Initial load
+refreshLogs();
+
+// Auto-refresh every 30 seconds
+setInterval(refreshLogs, 30000);
+</script>
+{% endblock %}

@@ -1,0 +1,592 @@
+{% extends "base.html" %}
+
+{% block title %}Create Campaign - Step 1{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto animate-fade-in">
+  <form action="/campaigns/create_step1" method="POST" id="campaignStep1Form" class="space-y-8">
+    <section class="relative overflow-hidden rounded-3xl border border-slate-200 dark:border-white/10 bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 px-6 py-8 shadow-xl sm:px-8 lg:px-10">
+      <div class="absolute inset-y-0 right-0 w-1/2 bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.3),transparent_55%)]"></div>
+      <div class="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+        <div class="max-w-3xl space-y-4">
+          <div class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-blue-200">
+            <i class="fas fa-bullseye"></i>
+            Campaign Setup
+          </div>
+          <div>
+            <h1 class="text-3xl font-black tracking-tight text-white sm:text-4xl">Create a campaign with a clear objective and delivery plan</h1>
+            <p class="mt-3 max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
+              Define what you are testing, who the email appears to come from, and how aggressively it should be delivered.
+            </p>
+          </div>
+          <div class="flex flex-wrap items-center gap-3 text-xs text-slate-300 sm:text-sm">
+            <span class="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1.5 ring-1 ring-white/10">
+              <span class="h-2 w-2 rounded-full bg-blue-400"></span>
+              Step 1 of 3
+            </span>
+            <span class="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1.5 ring-1 ring-white/10">
+              <i class="fas fa-envelope-open-text text-blue-300"></i>
+              Template comes next
+            </span>
+            <span class="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1.5 ring-1 ring-white/10">
+              <i class="fas fa-users text-blue-300"></i>
+              Target selection after setup
+            </span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-3 rounded-2xl border border-white/10 bg-white/5 p-3 text-center backdrop-blur-sm">
+          <div class="rounded-2xl bg-blue-500/15 px-4 py-3 ring-1 ring-blue-400/20">
+            <div class="text-xs uppercase tracking-wide text-blue-200">Step 1</div>
+            <div class="mt-1 text-sm font-semibold text-white">Setup</div>
+          </div>
+          <div class="rounded-2xl bg-white/5 px-4 py-3 ring-1 ring-white/10">
+            <div class="text-xs uppercase tracking-wide text-slate-400">Step 2</div>
+            <div class="mt-1 text-sm font-semibold text-slate-200">Template</div>
+          </div>
+          <div class="rounded-2xl bg-white/5 px-4 py-3 ring-1 ring-white/10">
+            <div class="text-xs uppercase tracking-wide text-slate-400">Step 3</div>
+            <div class="mt-1 text-sm font-semibold text-slate-200">Targets</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="grid gap-8 xl:grid-cols-[minmax(0,1fr)_340px]">
+      <div class="space-y-6">
+        <section class="rounded-3xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+          <div class="border-b border-slate-200 dark:border-white/10 bg-slate-50/80 dark:bg-white/5 px-6 py-5 sm:px-8">
+            <div class="flex items-start gap-4">
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-900/20">
+                <i class="fas fa-bullhorn"></i>
+              </div>
+              <div>
+                <h2 class="text-lg font-semibold text-slate-900 dark:text-white">Campaign brief</h2>
+                <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Name the exercise and define the behavior you want to measure.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="space-y-6 px-6 py-6 sm:px-8">
+            <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_260px]">
+              <div class="space-y-6">
+                <div class="flex flex-col gap-2">
+                  <label class="text-sm font-medium text-slate-900 dark:text-white" for="campaign-name">Campaign name <span class="text-red-500">*</span></label>
+                  <input
+                    name="campaign-name"
+                    id="campaign-name"
+                    type="text"
+                    placeholder="Example: Quarter 2 Password Reset Simulation"
+                    class="h-12 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/50 px-4 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-0 focus:ring-2 focus:ring-primary/50"
+                  />
+                  <p class="text-xs text-slate-500 dark:text-slate-400">Use a name your team can recognize later in reports and audit trails.</p>
+                </div>
+
+                <div class="flex flex-col gap-2">
+                  <label class="text-sm font-medium text-slate-900 dark:text-white" for="campaign-description">Why are you running this campaign?</label>
+                  <textarea
+                    name="campaign-description"
+                    id="campaign-description"
+                    rows="4"
+                    placeholder="Example: Validate whether branch staff will trust a fake password reset message that appears to come from IT operations."
+                    class="rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/50 px-4 py-3 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-0 focus:ring-2 focus:ring-primary/50"
+                  ></textarea>
+                </div>
+              </div>
+
+              <div class="rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800/40 p-5">
+                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Operator notes</p>
+                <div class="mt-4 space-y-3 text-sm text-slate-600 dark:text-slate-300">
+                  <div class="flex items-start gap-3">
+                    <i class="fas fa-check-circle mt-0.5 text-emerald-500"></i>
+                    <span>Keep names specific enough to distinguish one simulation from another.</span>
+                  </div>
+                  <div class="flex items-start gap-3">
+                    <i class="fas fa-check-circle mt-0.5 text-emerald-500"></i>
+                    <span>Use the description to record the test hypothesis and expected outcome.</span>
+                  </div>
+                  <div class="flex items-start gap-3">
+                    <i class="fas fa-check-circle mt-0.5 text-emerald-500"></i>
+                    <span>This text shows up in internal management views, not in the phishing email.</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="space-y-4">
+              <div class="flex items-center justify-between gap-3 flex-wrap">
+                <label class="text-sm font-medium text-slate-900 dark:text-white" for="campaign-type">Simulation objective <span class="text-red-500">*</span></label>
+                <span id="campaign-type-badge" class="inline-flex items-center gap-2 rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                  <i class="fas fa-shield-alt"></i>
+                  Credential harvest
+                </span>
+              </div>
+              <div class="relative">
+                <select name="campaign-type" id="campaign-type" class="h-12 w-full appearance-none rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/50 px-4 pr-12 text-sm text-slate-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 cursor-pointer">
+                  <option value="credential_harvest">Credential Harvest</option>
+                  <option value="link_click">Link Click</option>
+                  <option value="attachment">Attachment</option>
+                  <option value="awareness">Awareness Training</option>
+                </select>
+                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400">
+                  <i class="fas fa-chevron-down text-xs"></i>
+                </div>
+              </div>
+              <div id="campaign-type-panel" class="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-4 text-sm text-blue-900 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-100">
+                <div class="flex items-start gap-3">
+                  <i id="campaign-type-icon" class="fas fa-key mt-0.5 text-blue-600 dark:text-blue-300"></i>
+                  <div>
+                    <p id="campaign-type-title" class="font-semibold">Credential Harvest</p>
+                    <p id="campaign-type-desc" class="mt-1 text-blue-800 dark:text-blue-200">Use this when you want to measure who will attempt to log in through a fake landing page.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="rounded-3xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+          <div class="border-b border-slate-200 dark:border-white/10 bg-slate-50/80 dark:bg-white/5 px-6 py-5 sm:px-8">
+            <div class="flex items-start gap-4">
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-lg shadow-emerald-900/20">
+                <i class="fas fa-user-secret"></i>
+              </div>
+              <div>
+                <h2 class="text-lg font-semibold text-slate-900 dark:text-white">Sender identity</h2>
+                <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Choose who the message appears to come from and which SMTP route should send it.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="space-y-6 px-6 py-6 sm:px-8">
+            <div class="grid gap-6 sm:grid-cols-2">
+              <div class="flex flex-col gap-2">
+                <label class="text-sm font-medium text-slate-900 dark:text-white" for="sender-name">Display name <span class="text-red-500">*</span></label>
+                <input
+                  name="sender-name"
+                  id="sender-name"
+                  type="text"
+                  placeholder="Example: IT Security Team"
+                  class="h-12 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/50 px-4 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-0 focus:ring-2 focus:ring-primary/50"
+                />
+              </div>
+              <div class="flex flex-col gap-2">
+                <label class="text-sm font-medium text-slate-900 dark:text-white" for="sender-email">Sender email <span class="text-red-500">*</span></label>
+                <input
+                  name="sender-email"
+                  id="sender-email"
+                  type="email"
+                  placeholder="Example: security@company.com"
+                  class="h-12 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/50 px-4 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-0 focus:ring-2 focus:ring-primary/50"
+                />
+              </div>
+            </div>
+
+            <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
+              <div class="flex flex-col gap-2">
+                <label class="text-sm font-medium text-slate-900 dark:text-white" for="smtp-profile">SMTP profile</label>
+                <div class="relative">
+                  <select name="smtp-profile" id="smtp-profile" class="h-12 w-full appearance-none rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/50 px-4 pr-12 text-sm text-slate-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 cursor-pointer">
+                    <option value="">Use default system SMTP</option>
+                    {% for profile in smtp_profiles %}
+                    <option value="{{ profile.id }}">{{ profile.name }} ({{ profile.smtp_server }})</option>
+                    {% endfor %}
+                  </select>
+                  <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400">
+                    <i class="fas fa-chevron-down text-xs"></i>
+                  </div>
+                </div>
+                <p class="text-xs text-slate-500 dark:text-slate-400">
+                  Pick a specific infrastructure route for this simulation, or leave it on the default system sender.
+                  <a href="{{ url_for('smtp_profiles') }}" class="font-medium text-primary hover:underline">Manage profiles</a>
+                </p>
+              </div>
+
+              <div class="rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800/40 p-5">
+                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Identity checklist</p>
+                <div class="mt-4 space-y-3 text-sm text-slate-600 dark:text-slate-300">
+                  <div class="flex items-start gap-3">
+                    <i class="fas fa-angle-right mt-1 text-emerald-500"></i>
+                    <span>Match the sender name to the scenario the template will support.</span>
+                  </div>
+                  <div class="flex items-start gap-3">
+                    <i class="fas fa-angle-right mt-1 text-emerald-500"></i>
+                    <span>Use an SMTP profile that fits the campaign volume and authentication requirements.</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="rounded-3xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+          <div class="border-b border-slate-200 dark:border-white/10 bg-slate-50/80 dark:bg-white/5 px-6 py-5 sm:px-8">
+            <div class="flex items-start gap-4">
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-600 text-white shadow-lg shadow-violet-900/20">
+                <i class="fas fa-wave-square"></i>
+              </div>
+              <div>
+                <h2 class="text-lg font-semibold text-slate-900 dark:text-white">Delivery plan</h2>
+                <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Control when the campaign launches and how quickly mail is distributed.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="space-y-6 px-6 py-6 sm:px-8">
+            <div class="grid gap-4 lg:grid-cols-2">
+              <label for="launch-immediately" class="cursor-pointer rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800/30 p-5 transition hover:border-blue-300 hover:bg-blue-50/70 dark:hover:border-blue-700 dark:hover:bg-blue-900/10 has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50 dark:has-[:checked]:border-blue-600 dark:has-[:checked]:bg-blue-950/20">
+                <div class="flex items-start gap-3">
+                  <input checked name="launch-timing" value="immediate" id="launch-immediately" type="radio" class="mt-1 h-4 w-4 border-slate-300 text-primary focus:ring-primary" />
+                  <div>
+                    <p class="text-sm font-semibold text-slate-900 dark:text-white">Launch immediately</p>
+                    <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">The campaign starts as soon as targets are selected in the next step.</p>
+                  </div>
+                </div>
+              </label>
+
+              <label for="schedule-later" class="cursor-pointer rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800/30 p-5 transition hover:border-violet-300 hover:bg-violet-50/70 dark:hover:border-violet-700 dark:hover:bg-violet-900/10 has-[:checked]:border-violet-500 has-[:checked]:bg-violet-50 dark:has-[:checked]:border-violet-600 dark:has-[:checked]:bg-violet-950/20">
+                <div class="flex items-start gap-3">
+                  <input name="launch-timing" value="scheduled" id="schedule-later" type="radio" class="mt-1 h-4 w-4 border-slate-300 text-primary focus:ring-primary" />
+                  <div>
+                    <p class="text-sm font-semibold text-slate-900 dark:text-white">Schedule a launch window</p>
+                    <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Useful when you want the campaign to begin during business hours or after approvals.</p>
+                  </div>
+                </div>
+              </label>
+            </div>
+
+            <div id="schedule-fields" class="hidden grid gap-5 rounded-2xl border border-violet-200 bg-violet-50/70 p-5 dark:border-violet-900/40 dark:bg-violet-950/20 sm:grid-cols-2">
+              <div class="flex flex-col gap-2">
+                <label class="text-sm font-medium text-slate-900 dark:text-white" for="start-date">Launch date and time</label>
+                <input name="start-date" id="start-date" type="datetime-local" class="h-12 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/50 px-4 text-sm text-slate-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50" />
+              </div>
+              <div class="rounded-2xl border border-violet-200/80 bg-white/70 p-4 text-sm text-slate-600 dark:border-violet-800/40 dark:bg-slate-900/40 dark:text-slate-300">
+                <p class="font-semibold text-slate-900 dark:text-white">Scheduling note</p>
+                <p class="mt-2">The campaign record is created now, but delivery will wait until the scheduled start time is reached.</p>
+              </div>
+            </div>
+
+            <div class="rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800/40 p-5">
+              <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <div class="flex items-center gap-3">
+                    <i class="fas fa-hourglass-half text-violet-500"></i>
+                    <h3 class="text-sm font-semibold text-slate-900 dark:text-white">Staggered sending</h3>
+                  </div>
+                  <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">Throttle the campaign so messages are spaced out instead of landing all at once.</p>
+                </div>
+                <div class="flex items-center gap-3 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 px-4 py-3">
+                  <input name="stagger-seconds" id="stagger-seconds" type="number" min="0" max="3600" value="0" class="h-11 w-24 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/50 px-3 text-sm text-slate-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50" />
+                  <div>
+                    <label for="stagger-seconds" class="block text-sm font-medium text-slate-900 dark:text-white">Seconds between emails</label>
+                    <p id="stagger-hint" class="text-xs text-slate-500 dark:text-slate-400">0 means send continuously with no waiting.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-4 grid gap-3 sm:grid-cols-3">
+                <button type="button" class="stagger-preset rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 px-4 py-3 text-left text-sm transition hover:border-violet-300 hover:bg-violet-50 dark:hover:border-violet-700 dark:hover:bg-violet-900/10" data-seconds="0">
+                  <span class="block font-semibold text-slate-900 dark:text-white">Immediate</span>
+                  <span class="text-xs text-slate-500 dark:text-slate-400">No delay between sends</span>
+                </button>
+                <button type="button" class="stagger-preset rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 px-4 py-3 text-left text-sm transition hover:border-violet-300 hover:bg-violet-50 dark:hover:border-violet-700 dark:hover:bg-violet-900/10" data-seconds="30">
+                  <span class="block font-semibold text-slate-900 dark:text-white">30 seconds</span>
+                  <span class="text-xs text-slate-500 dark:text-slate-400">Good for medium sized batches</span>
+                </button>
+                <button type="button" class="stagger-preset rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 px-4 py-3 text-left text-sm transition hover:border-violet-300 hover:bg-violet-50 dark:hover:border-violet-700 dark:hover:bg-violet-900/10" data-seconds="60">
+                  <span class="block font-semibold text-slate-900 dark:text-white">1 minute</span>
+                  <span class="text-xs text-slate-500 dark:text-slate-400">Safer for cautious delivery</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <aside class="space-y-6 xl:sticky xl:top-6 xl:self-start">
+        <section class="rounded-3xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+          <div class="border-b border-slate-200 dark:border-white/10 bg-slate-50/80 dark:bg-white/5 px-6 py-5">
+            <h2 class="text-lg font-semibold text-slate-900 dark:text-white">Setup summary</h2>
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">A quick readback of the choices you are making.</p>
+          </div>
+          <div class="space-y-4 px-6 py-6 text-sm">
+            <div class="rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800/40 p-4">
+              <div class="text-xs uppercase tracking-wide text-slate-400">Campaign</div>
+              <div id="summary-name" class="mt-2 font-semibold text-slate-900 dark:text-white">Untitled campaign</div>
+              <div id="summary-type" class="mt-1 text-slate-500 dark:text-slate-400">Credential Harvest</div>
+            </div>
+            <div class="rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800/40 p-4">
+              <div class="text-xs uppercase tracking-wide text-slate-400">Sender</div>
+              <div id="summary-sender-name" class="mt-2 font-semibold text-slate-900 dark:text-white">No display name yet</div>
+              <div id="summary-sender-email" class="mt-1 text-slate-500 dark:text-slate-400">No sender email yet</div>
+            </div>
+            <div class="rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800/40 p-4">
+              <div class="text-xs uppercase tracking-wide text-slate-400">Delivery</div>
+              <div id="summary-launch" class="mt-2 font-semibold text-slate-900 dark:text-white">Launch immediately</div>
+              <div id="summary-stagger" class="mt-1 text-slate-500 dark:text-slate-400">No stagger configured</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="rounded-3xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+          <div class="border-b border-slate-200 dark:border-white/10 bg-slate-50/80 dark:bg-white/5 px-6 py-5">
+            <h2 class="text-lg font-semibold text-slate-900 dark:text-white">What happens next</h2>
+          </div>
+          <div class="space-y-4 px-6 py-6 text-sm text-slate-600 dark:text-slate-300">
+            <div class="flex items-start gap-3">
+              <div class="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">1</div>
+              <div>
+                <p class="font-semibold text-slate-900 dark:text-white">Choose the email template</p>
+                <p class="mt-1">You will select or build the message that supports the objective chosen here.</p>
+              </div>
+            </div>
+            <div class="flex items-start gap-3">
+              <div class="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">2</div>
+              <div>
+                <p class="font-semibold text-slate-900 dark:text-white">Pick targets</p>
+                <p class="mt-1">Your delivery settings will be applied when the selected targets are queued.</p>
+              </div>
+            </div>
+            <div class="flex items-start gap-3">
+              <div class="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">3</div>
+              <div>
+                <p class="font-semibold text-slate-900 dark:text-white">Monitor results</p>
+                <p class="mt-1">Open, report, reminder, and resend controls become available once the campaign is running.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </aside>
+    </div>
+
+    <div class="flex flex-col-reverse gap-3 border-t border-slate-200 pt-6 dark:border-white/10 sm:flex-row sm:items-center sm:justify-between">
+      <a href="{{ url_for('campaigns.list_campaigns') }}" class="inline-flex items-center justify-center rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-5 py-3 text-sm font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-800">
+        Cancel
+      </a>
+      <button type="submit" class="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-900/20 transition hover:bg-blue-500">
+        Continue to Template
+        <i class="fas fa-arrow-right"></i>
+      </button>
+    </div>
+  </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('campaignStep1Form');
+    const launchImmediately = document.getElementById('launch-immediately');
+    const scheduleLater = document.getElementById('schedule-later');
+    const scheduleFields = document.getElementById('schedule-fields');
+    const campaignTypeSelect = document.getElementById('campaign-type');
+    const campaignTypeBadge = document.getElementById('campaign-type-badge');
+    const campaignTypeTitle = document.getElementById('campaign-type-title');
+    const campaignTypeDesc = document.getElementById('campaign-type-desc');
+    const campaignTypeIcon = document.getElementById('campaign-type-icon');
+    const campaignName = document.getElementById('campaign-name');
+    const senderName = document.getElementById('sender-name');
+    const senderEmail = document.getElementById('sender-email');
+    const startDate = document.getElementById('start-date');
+    const staggerSeconds = document.getElementById('stagger-seconds');
+    const staggerPresets = document.querySelectorAll('.stagger-preset');
+
+    const summaryName = document.getElementById('summary-name');
+    const summaryType = document.getElementById('summary-type');
+    const summarySenderName = document.getElementById('summary-sender-name');
+    const summarySenderEmail = document.getElementById('summary-sender-email');
+    const summaryLaunch = document.getElementById('summary-launch');
+    const summaryStagger = document.getElementById('summary-stagger');
+    const staggerHint = document.getElementById('stagger-hint');
+
+    const typeMeta = {
+        credential_harvest: {
+            title: 'Credential Harvest',
+            desc: 'Use this when you want to measure who will attempt to log in through a fake landing page.',
+            icon: 'fas fa-key',
+            badgeClass: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+            panelClass: 'border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-100'
+        },
+        link_click: {
+            title: 'Link Click',
+            desc: 'Use this when the goal is simply to see who interacts with a suspicious link.',
+            icon: 'fas fa-link',
+            badgeClass: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+            panelClass: 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100'
+        },
+        attachment: {
+            title: 'Attachment',
+            desc: 'Use this when the attack path depends on a document or file being opened by the user.',
+            icon: 'fas fa-paperclip',
+            badgeClass: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300',
+            panelClass: 'border-rose-200 bg-rose-50 text-rose-900 dark:border-rose-900/40 dark:bg-rose-950/30 dark:text-rose-100'
+        },
+        awareness: {
+            title: 'Awareness Training',
+            desc: 'Use this when the campaign is meant to educate rather than simulate capture behavior.',
+            icon: 'fas fa-graduation-cap',
+            badgeClass: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+            panelClass: 'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-100'
+        }
+    };
+
+    function updateTypePanel() {
+        const meta = typeMeta[campaignTypeSelect.value] || typeMeta.credential_harvest;
+        const panel = document.getElementById('campaign-type-panel');
+        campaignTypeTitle.textContent = meta.title;
+        campaignTypeDesc.textContent = meta.desc;
+        campaignTypeIcon.className = meta.icon + ' mt-0.5';
+        campaignTypeBadge.className = 'inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ' + meta.badgeClass;
+        campaignTypeBadge.innerHTML = '<i class="fas fa-shield-alt"></i>' + meta.title;
+        panel.className = 'rounded-2xl border px-4 py-4 text-sm ' + meta.panelClass;
+        summaryType.textContent = meta.title;
+    }
+
+    function toggleScheduleFields() {
+        scheduleFields.classList.toggle('hidden', !scheduleLater.checked);
+        if (scheduleLater.checked) {
+            summaryLaunch.textContent = startDate.value ? 'Scheduled for ' + startDate.value.replace('T', ' ') : 'Scheduled launch pending date';
+        } else {
+            summaryLaunch.textContent = 'Launch immediately';
+        }
+    }
+
+    function updateSummary() {
+        summaryName.textContent = campaignName.value.trim() || 'Untitled campaign';
+        summarySenderName.textContent = senderName.value.trim() || 'No display name yet';
+        summarySenderEmail.textContent = senderEmail.value.trim() || 'No sender email yet';
+
+        const staggerValue = parseInt(staggerSeconds.value || '0', 10);
+        if (!staggerValue) {
+            summaryStagger.textContent = 'No stagger configured';
+            staggerHint.textContent = '0 means send continuously with no waiting.';
+        } else if (staggerValue < 60) {
+            summaryStagger.textContent = staggerValue + ' second gap between emails';
+            staggerHint.textContent = 'Messages will be spaced every ' + staggerValue + ' seconds.';
+        } else {
+            const minutes = (staggerValue / 60).toFixed(staggerValue % 60 === 0 ? 0 : 1);
+            summaryStagger.textContent = minutes + ' minute gap between emails';
+            staggerHint.textContent = 'Messages will be spaced every ' + minutes + ' minute(s).';
+        }
+
+        toggleScheduleFields();
+    }
+
+    launchImmediately.addEventListener('change', toggleScheduleFields);
+    scheduleLater.addEventListener('change', toggleScheduleFields);
+    startDate.addEventListener('input', toggleScheduleFields);
+    campaignTypeSelect.addEventListener('change', updateTypePanel);
+    [campaignName, senderName, senderEmail, staggerSeconds].forEach(function(field) {
+        field.addEventListener('input', updateSummary);
+    });
+
+    staggerPresets.forEach(function(button) {
+        button.addEventListener('click', function() {
+            staggerSeconds.value = this.dataset.seconds;
+            updateSummary();
+        });
+    });
+
+    form.addEventListener('submit', function(e) {
+        const cleanName = campaignName.value.trim();
+        const cleanSenderName = senderName.value.trim();
+        const cleanSenderEmail = senderEmail.value.trim();
+        const delayValue = parseInt(staggerSeconds.value || '0', 10);
+
+        if (!cleanName) {
+            e.preventDefault();
+            showToast('Please enter a campaign name', 'error');
+            campaignName.focus();
+            return;
+        }
+
+        if (!cleanSenderName) {
+            e.preventDefault();
+            showToast('Please enter a sender name', 'error');
+            senderName.focus();
+            return;
+        }
+
+        if (!cleanSenderEmail) {
+            e.preventDefault();
+            showToast('Please enter a sender email', 'error');
+            senderEmail.focus();
+            return;
+        }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(cleanSenderEmail)) {
+            e.preventDefault();
+            showToast('Please enter a valid sender email', 'error');
+            senderEmail.focus();
+            return;
+        }
+
+        if (scheduleLater.checked && !startDate.value) {
+            e.preventDefault();
+            showToast('Please select a launch date and time', 'error');
+            startDate.focus();
+            return;
+        }
+
+        if (Number.isNaN(delayValue) || delayValue < 0 || delayValue > 3600) {
+            e.preventDefault();
+            showToast('Stagger delay must be between 0 and 3600 seconds', 'error');
+            staggerSeconds.focus();
+        }
+    });
+
+    updateTypePanel();
+    updateSummary();
+});
+
+function showToast(message, type = 'info') {
+    const container = document.getElementById('toast-container') || createToastContainer();
+
+    const toast = document.createElement('div');
+    toast.className = 'toast-notification transform transition-all duration-300 ease-out translate-x-full';
+
+    const icons = {
+        success: 'fas fa-check-circle text-green-400',
+        error: 'fas fa-exclamation-circle text-red-400',
+        warning: 'fas fa-exclamation-triangle text-yellow-400',
+        info: 'fas fa-info-circle text-blue-400'
+    };
+
+    const bgColors = {
+        success: 'border-green-500/30',
+        error: 'border-red-500/30',
+        warning: 'border-yellow-500/30',
+        info: 'border-blue-500/30'
+    };
+
+    toast.innerHTML = `
+        <div class="flex items-center gap-3 bg-gray-900/95 backdrop-blur-sm border ${bgColors[type]} rounded-lg px-4 py-3 shadow-xl min-w-[300px]">
+            <i class="${icons[type]}"></i>
+            <span class="text-white text-sm flex-1">${message}</span>
+            <button onclick="this.closest('.toast-notification').remove()" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times text-xs"></i>
+            </button>
+        </div>
+    `;
+
+    container.appendChild(toast);
+
+    requestAnimationFrame(() => {
+        toast.classList.remove('translate-x-full');
+        toast.classList.add('translate-x-0');
+    });
+
+    setTimeout(() => {
+        toast.classList.add('translate-x-full');
+        setTimeout(() => toast.remove(), 300);
+    }, 4000);
+}
+
+function createToastContainer() {
+    const container = document.createElement('div');
+    container.id = 'toast-container';
+    container.className = 'fixed top-4 right-4 z-50 flex flex-col gap-2';
+    document.body.appendChild(container);
+    return container;
+}
+</script>
+{% endblock %}

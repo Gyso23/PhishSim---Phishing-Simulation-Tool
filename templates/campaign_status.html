@@ -1,0 +1,1218 @@
+{% extends "base.html" %}
+
+{% block title %}Campaign Results - {{ campaign.name if campaign else 'Status' }}{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-6 animate-fade-in">
+  <div class="mb-6 flex justify-between items-center">
+    <a onclick="history.back()" href="#" class="inline-flex items-center text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors cursor-pointer">
+      <i class="fas fa-arrow-left mr-2"></i> Back
+    </a>
+    {% if campaign and campaign.status == 'running' %}
+    <div class="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 text-sm">
+      <i class="fas fa-sync-alt animate-spin"></i>
+      <span>Live updating every 10s</span>
+    </div>
+    {% endif %}
+  </div>
+  
+  <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-8 shadow-sm">
+    {% if campaign %}
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h2 class="text-2xl font-bold text-slate-900 dark:text-slate-100">{{ campaign.name }}</h2>
+          <p class="text-slate-500 dark:text-slate-400 mt-1">{{ campaign.description or 'Campaign Results' }}</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600">
+            <div id="campaign-status-dot" class="w-2 h-2 rounded-full {% if campaign.status == 'running' %}bg-emerald-500 dark:bg-emerald-400 animate-pulse{% elif campaign.status == 'completed' %}bg-blue-500 dark:bg-blue-400{% else %}bg-slate-500 dark:bg-slate-400{% endif %}"></div>
+            <span id="campaign-status-text" class="text-slate-700 dark:text-slate-300 font-medium">{{ campaign.status|capitalize if campaign.status else 'Draft' }}</span>
+          </div>
+          <button onclick="window.location.href='{{ url_for('reminder_settings_page', campaign_id=campaign.id) }}'" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2" title="Configure reminder settings">
+            <i class="fas fa-bell"></i>
+            <span class="hidden sm:inline">Reminder Settings</span>
+          </button>
+          {% if campaign and campaign.status == 'running' %}
+          <button id="stopBtn" onclick="stopCampaign()" class="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-sm font-medium transition-colors"> <i class="fas fa-stop mr-2"></i> Stop Campaign</button>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Stats Grid -->
+      <div class="grid grid-cols-2 md:grid-cols-6 gap-4 mb-8">
+        <div class="bg-slate-50 dark:bg-slate-900 rounded-lg p-5 border border-slate-200 dark:border-slate-700">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-slate-500 dark:text-slate-400 text-xs uppercase">Sent</span>
+            <i class="fas fa-paper-plane text-blue-600 dark:text-blue-400"></i>
+          </div>
+          <div class="text-2xl font-bold text-slate-900 dark:text-slate-100" id="stat-sent">{{ campaign.sent_count or results|length }}</div>
+        </div>
+        <div class="bg-slate-50 dark:bg-slate-900 rounded-lg p-5 border border-slate-200 dark:border-slate-700">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-slate-500 dark:text-slate-400 text-xs uppercase">Opened</span>
+            <i class="fas fa-envelope-open text-emerald-600 dark:text-emerald-400"></i>
+          </div>
+          <div class="text-2xl font-bold text-emerald-600 dark:text-emerald-400" id="stat-opened">{{ results|selectattr('opened')|list|length }}</div>
+        </div>
+        <div class="bg-slate-50 dark:bg-slate-900 rounded-lg p-5 border border-slate-200 dark:border-slate-700">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-slate-500 dark:text-slate-400 text-xs uppercase">Clicked</span>
+            <i class="fas fa-mouse-pointer text-orange-600 dark:text-orange-400"></i>
+          </div>
+          <div class="text-2xl font-bold text-orange-600 dark:text-orange-400" id="stat-clicked">{{ results|selectattr('clicked')|list|length }}</div>
+        </div>
+        <div class="bg-slate-50 dark:bg-slate-900 rounded-lg p-5 border border-slate-200 dark:border-slate-700">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-slate-500 dark:text-slate-400 text-xs uppercase">Reported</span>
+            <i class="fas fa-flag text-purple-600 dark:text-purple-400"></i>
+          </div>
+          <div class="text-2xl font-bold text-purple-600 dark:text-purple-400" id="stat-reported">{{ results|selectattr('reported')|list|length }}</div>
+        </div>
+        <div class="bg-slate-50 dark:bg-slate-900 rounded-lg p-5 border border-slate-200 dark:border-slate-700">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-slate-500 dark:text-slate-400 text-xs uppercase">Questionnaire</span>
+            <i class="fas fa-clipboard-check text-purple-600 dark:text-purple-400"></i>
+          </div>
+          <div class="text-2xl font-bold text-purple-600 dark:text-purple-400" id="stat-questionnaire">{{ results|selectattr('questionnaire_completed')|list|length }}</div>
+        </div>
+        <div class="bg-slate-50 dark:bg-slate-900 rounded-lg p-5 border border-slate-200 dark:border-slate-700">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-slate-500 dark:text-slate-400 text-xs uppercase">Click Rate</span>
+            <i class="fas fa-percentage text-amber-600 dark:text-amber-400"></i>
+          </div>
+          {% set total = results|length %}
+          {% set clicked_count = results|selectattr('clicked')|list|length %}
+          <div class="text-2xl font-bold text-amber-600 dark:text-amber-400" id="stat-click-rate">{{ ((clicked_count / total * 100)|round(1) if total > 0 else 0) }}%</div>
+        </div>
+      </div>
+
+      <!-- Tab Navigation -->
+      <div class="border-b border-slate-200 dark:border-slate-700 mb-6">
+        <nav class="flex gap-6">
+          <button onclick="switchTab('results')" id="tab-results" class="tab-btn py-3 px-1 text-sm font-medium border-b-2 border-primary text-primary">
+            <i class="fas fa-table mr-2"></i>Results Table
+          </button>
+          <button onclick="switchTab('timeline')" id="tab-timeline" class="tab-btn py-3 px-1 text-sm font-medium border-b-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
+            <i class="fas fa-stream mr-2"></i>Activity Timeline
+          </button>
+          <button onclick="switchTab('sbu')" id="tab-sbu" class="tab-btn py-3 px-1 text-sm font-medium border-b-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
+            <i class="fas fa-sitemap mr-2"></i>By SBU
+          </button>
+        </nav>
+      </div>
+
+      <!-- Results Tab -->
+      <div id="panel-results" class="tab-panel">
+        
+        <!-- Advanced Filters -->
+        <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 mb-4 shadow-sm">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <!-- Search -->
+                <div class="col-span-1 md:col-span-2">
+                    <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Search</label>
+                    <div class="relative">
+                        <i class="fas fa-search absolute left-3 top-2.5 text-slate-400"></i>
+                        <input type="text" id="searchResults" placeholder="Search by name or email..." 
+                            class="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary"
+                            oninput="filterResults()">
+                    </div>
+                </div>
+                
+                <!-- SBU Filter -->
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Department (SBU)</label>
+                    <select id="filterSBU" onchange="filterResults()" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary">
+                        <option value="">All Departments</option>
+                        <!-- Options populated by JS -->
+                    </select>
+                </div>
+
+                <!-- Date Range -->
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Activity Date</label>
+                    <select id="filterDate" onchange="filterResults()" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary">
+                        <option value="all">All Time</option>
+                        <option value="today">Today</option>
+                        <option value="7days">Last 7 Days</option>
+                        <option value="30days">Last 30 Days</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Status Checkboxes -->
+            <div class="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700 flex flex-wrap gap-4 items-center">
+                <span class="text-xs font-medium text-slate-500 dark:text-slate-400 mr-2">Filter by Status:</span>
+                
+                <label class="flex items-center gap-2 cursor-pointer select-none">
+                    <input type="checkbox" id="filterOpened" onchange="filterResults()" class="form-checkbox h-4 w-4 text-emerald-600 rounded border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 focus:ring-emerald-500">
+                    <span class="text-sm text-slate-700 dark:text-slate-300">Opened</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer select-none">
+                    <input type="checkbox" id="filterClicked" onchange="filterResults()" class="form-checkbox h-4 w-4 text-orange-600 rounded border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 focus:ring-orange-500">
+                    <span class="text-sm text-slate-700 dark:text-slate-300">Clicked</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer select-none">
+                    <input type="checkbox" id="filterReported" onchange="filterResults()" class="form-checkbox h-4 w-4 text-purple-600 rounded border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 focus:ring-purple-500">
+                    <span class="text-sm text-slate-700 dark:text-slate-300">Reported</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer select-none">
+                    <input type="checkbox" id="filterQuestionnaire" onchange="filterResults()" class="form-checkbox h-4 w-4 text-blue-600 rounded border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 focus:ring-blue-500">
+                    <span class="text-sm text-slate-700 dark:text-slate-300">Questionnaire</span>
+                </label>
+                
+                <div class="flex-1"></div>
+                
+                <div class="flex gap-2">
+                    <button onclick="resetFilters()" class="px-3 py-1.5 text-sm text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors">
+                        Reset Filters
+                    </button>
+                    <button onclick="exportXlsx()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-medium transition-colors">
+                        <i class="fas fa-file-excel mr-1"></i> Export Report
+                    </button>
+                    <button onclick="exportPDF()" class="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-lg text-sm font-medium transition-colors">
+                        <i class="fas fa-file-pdf mr-1"></i> PDF
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="mb-3 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <button onclick="expandAllTimelines()" class="px-3 py-1.5 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded text-xs font-medium transition-colors flex items-center gap-1.5">
+              <i class="fas fa-chevron-down"></i> Expand All
+            </button>
+            <button onclick="collapseAllTimelines()" class="px-3 py-1.5 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded text-xs font-medium transition-colors flex items-center gap-1.5">
+              <i class="fas fa-chevron-up"></i> Collapse All
+            </button>
+          </div>
+          <div class="text-xs text-slate-500 dark:text-slate-400" id="resultsCount">
+            Showing all results
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-left text-sm border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
+            <thead class="bg-slate-100 dark:bg-slate-700">
+              <tr>
+                <th class="px-4 py-3 text-slate-700 dark:text-slate-200 font-semibold cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors" onclick="sortTable('name')">
+                  <div class="flex items-center gap-2">
+                    Name <i class="fas fa-sort text-slate-400"></i>
+                  </div>
+                </th>
+                <th class="px-4 py-3 text-slate-700 dark:text-slate-200 font-semibold cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors" onclick="sortTable('email')">
+                  <div class="flex items-center gap-2">
+                    Email <i class="fas fa-sort text-slate-400"></i>
+                  </div>
+                </th>
+                <th class="px-4 py-3 text-slate-700 dark:text-slate-200 font-semibold cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors" onclick="sortTable('sbu')">
+                  <div class="flex items-center gap-2">
+                    SBU <i class="fas fa-sort text-slate-400"></i>
+                  </div>
+                </th>
+                <th class="px-4 py-3 text-slate-700 dark:text-slate-200 font-semibold text-center cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors" onclick="sortTable('opened')">
+                  <div class="flex items-center justify-center gap-2">
+                    Opened <i class="fas fa-sort text-slate-400"></i>
+                  </div>
+                </th>
+                <th class="px-4 py-3 text-slate-700 dark:text-slate-200 font-semibold text-center cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors" onclick="sortTable('clicked')">
+                  <div class="flex items-center justify-center gap-2">
+                    Clicked <i class="fas fa-sort text-slate-400"></i>
+                  </div>
+                </th>
+                <th class="px-4 py-3 text-slate-700 dark:text-slate-200 font-semibold text-center cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors" onclick="sortTable('reported')">
+                  <div class="flex items-center justify-center gap-2">
+                    Reported <i class="fas fa-sort text-slate-400"></i>
+                  </div>
+                </th>
+                <th class="px-4 py-3 text-slate-700 dark:text-slate-200 font-semibold text-center cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors" onclick="sortTable('questionnaire')">
+                  <div class="flex items-center justify-center gap-2">
+                    Questionnaire <i class="fas fa-sort text-slate-400"></i>
+                  </div>
+                </th>
+                <th class="px-4 py-3 text-slate-700 dark:text-slate-200 font-semibold text-center cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors" onclick="sortTable('reminders')">
+                  <div class="flex items-center justify-center gap-2">
+                    Reminders <i class="fas fa-sort text-slate-400"></i>
+                  </div>
+                </th>
+                <th class="px-4 py-3 text-slate-700 dark:text-slate-200 font-semibold cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors" onclick="sortTable('clicked_at')">
+                  <div class="flex items-center gap-2">
+                    Clicked At <i class="fas fa-sort text-slate-400"></i>
+                  </div>
+                </th>
+              </tr>
+            </thead>
+            <tbody id="resultsTableBody" class="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
+              {% for r in results %}
+              <!-- Main row - clickable to expand -->
+              <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors result-row cursor-pointer" 
+                  data-email="{{ r.email }}" 
+                  data-name="{{ r.first_name }} {{ r.last_name }}"
+                  data-sbu="{{ r.sbu or '' }}"
+                  data-opened="{{ '1' if r.opened else '0' }}"
+                  data-opened-at="{{ r.opened_at or '' }}"
+                  data-clicked="{{ '1' if r.clicked else '0' }}"
+                  data-clicked-at="{{ r.clicked_at or '' }}"
+                  data-reported="{{ '1' if r.reported else '0' }}"
+                  data-reported-at="{{ r.reported_at or '' }}"
+                  data-questionnaire="{{ '1' if r.questionnaire_completed else '0' }}"
+                  data-questionnaire-score="{{ r.questionnaire_score or '0' }}"
+                  data-reminders="{{ r.reminders_sent or '0' }}"
+                  onclick="toggleTimeline({{ r.id }})">
+                <td class="px-4 py-3 text-slate-900 dark:text-slate-200 font-medium">
+                  <i id="expand-icon-{{ r.id }}" class="fas fa-chevron-right mr-2 text-slate-400 dark:text-slate-500 transition-transform duration-200"></i>
+                  {{ r.first_name }} {{ r.last_name }}
+                </td>
+                <td class="px-4 py-3 text-slate-600 dark:text-slate-300">{{ r.email }}</td>
+                <td class="px-4 py-3 text-slate-500 dark:text-slate-400">{{ r.sbu or '-' }}</td>
+                <td class="px-4 py-3 text-center">
+                  {% if r.opened %}<i class="fas fa-check-circle text-emerald-600 dark:text-emerald-400"></i>{% else %}<i class="fas fa-minus text-slate-400 dark:text-slate-600"></i>{% endif %}
+                </td>
+                <td class="px-4 py-3 text-center">
+                  {% if r.clicked %}<i class="fas fa-check-circle text-orange-600 dark:text-orange-400"></i>{% else %}<i class="fas fa-minus text-slate-400 dark:text-slate-600"></i>{% endif %}
+                </td>
+                <td class="px-4 py-3 text-center" onclick="event.stopPropagation()">
+                  <input type="checkbox" {% if r.reported %}checked{% endif %} onchange="updateStatus({{ r.id }}, 'reported', this.checked)" class="w-4 h-4 rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-purple-600 dark:text-purple-500 focus:ring-purple-500 cursor-pointer">
+                </td>
+                <td class="px-4 py-3 text-center">
+                  {% if r.questionnaire_completed %}
+                    <div class="flex items-center justify-center gap-1">
+                      <i class="fas fa-check-circle text-purple-600 dark:text-purple-400"></i>
+                      <span class="text-xs text-slate-500 dark:text-slate-400">
+                        {% if r.questionnaire_score is not none %}
+                          {% if r.questionnaire_score <= 6 %}
+                            {# Likely stored as count, not percentage - warn user #}
+                            {{ r.questionnaire_score }}/6
+                          {% else %}
+                            {{ r.questionnaire_score }}%
+                          {% endif %}
+                        {% else %}
+                          ✓
+                        {% endif %}
+                      </span>
+                    </div>
+                  {% else %}
+                    <i class="fas fa-minus text-slate-400 dark:text-slate-600"></i>
+                  {% endif %}
+                </td>
+                <td class="px-4 py-3 text-center">
+                  {% if r.reminder_count > 0 %}
+                    <span class="text-amber-600 dark:text-amber-400 font-medium">{{ r.reminder_count }}</span>
+                  {% else %}
+                    <i class="fas fa-minus text-slate-400 dark:text-slate-600"></i>
+                  {% endif %}
+                </td>
+                <td class="px-4 py-3 text-slate-500 dark:text-slate-400 text-sm">{{ r.clicked_at or '-' }}</td>
+              </tr>
+              <!-- Expandable timeline row -->
+              <tr id="timeline-row-{{ r.id }}" class="hidden bg-slate-50 dark:bg-slate-900/50">
+                <td colspan="8" class="px-4 py-0">
+                  <div class="py-4 pl-8">
+                    <div class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase mb-3">Activity Timeline</div>
+                    <div class="relative border-l-2 border-slate-300 dark:border-slate-600 pl-6 space-y-4">
+                      <!-- Email Sent -->
+                      <div class="relative">
+                        <div class="absolute -left-[29px] w-4 h-4 rounded-full {% if r.sent_at %}bg-blue-500{% else %}bg-slate-400 dark:bg-slate-600{% endif %} border-2 border-white dark:border-slate-900"></div>
+                        <div class="flex items-center gap-3">
+                          <i class="fas fa-paper-plane text-blue-600 dark:text-blue-400 w-4"></i>
+                          <span class="text-slate-700 dark:text-slate-300 text-sm">Email Sent</span>
+                          <span class="text-slate-500 text-xs">{{ r.sent_at or 'Not sent' }}</span>
+                        </div>
+                      </div>
+                      <!-- Email Opened -->
+                      {% if r.opened %}
+                      <div class="relative">
+                        <div class="absolute -left-[29px] w-4 h-4 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900"></div>
+                        <div class="flex items-center gap-3">
+                          <i class="fas fa-envelope-open text-emerald-600 dark:text-emerald-400 w-4"></i>
+                          <span class="text-slate-700 dark:text-slate-300 text-sm">Email Opened</span>
+                          <span class="text-slate-500 text-xs">{{ r.opened_at }}</span>
+                        </div>
+                      </div>
+                      {% endif %}
+                      <!-- Link Clicked -->
+                      {% if r.clicked %}
+                      <div class="relative">
+                        <div class="absolute -left-[29px] w-4 h-4 rounded-full bg-orange-500 border-2 border-white dark:border-slate-900"></div>
+                        <div class="flex items-center gap-3">
+                          <i class="fas fa-mouse-pointer text-orange-600 dark:text-orange-400 w-4"></i>
+                          <span class="text-slate-700 dark:text-slate-300 text-sm">Link Clicked</span>
+                          <span class="text-slate-500 text-xs">{{ r.clicked_at }}</span>
+                        </div>
+                      </div>
+                      {% endif %}
+                      <!-- Data Submitted -->
+                      {% if r.submitted_at %}
+                      <div class="relative">
+                        <div class="absolute -left-[29px] w-4 h-4 rounded-full bg-red-500 border-2 border-white dark:border-slate-900"></div>
+                        <div class="flex items-center gap-3">
+                          <i class="fas fa-keyboard text-red-600 dark:text-red-400 w-4"></i>
+                          <span class="text-slate-700 dark:text-slate-300 text-sm">Data Submitted</span>
+                          <span class="text-slate-500 text-xs">{{ r.submitted_at }}</span>
+                        </div>
+                      </div>
+                      {% endif %}
+                      <!-- Questionnaire Completed -->
+                      {% if r.questionnaire_completed %}
+                      <div class="relative">
+                        <div class="absolute -left-[29px] w-4 h-4 rounded-full bg-purple-500 border-2 border-white dark:border-slate-900"></div>
+                        <div class="flex items-center gap-3">
+                          <i class="fas fa-clipboard-check text-purple-600 dark:text-purple-400 w-4"></i>
+                          <span class="text-slate-700 dark:text-slate-300 text-sm">Questionnaire Completed</span>
+                          <span class="text-slate-500 text-xs">
+                            {{ r.questionnaire_completed_at }}
+                            {% if r.questionnaire_score is not none %}
+                              {% if r.questionnaire_score <= 6 %}
+                                (Score: {{ r.questionnaire_score }}/6)
+                              {% else %}
+                                (Score: {{ r.questionnaire_score }}%)
+                              {% endif %}
+                            {% endif %}
+                          </span>
+                        </div>
+                        {% if r.questionnaire_completed and r.questionnaire_answers %}
+                        <div class="mt-3 ml-7 p-4 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                          <div class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase mb-3 flex items-center gap-2">
+                            <i class="fas fa-clipboard-list"></i>
+                            <span>Questionnaire Responses</span>
+                          </div>
+                          <div class="space-y-3 text-sm">
+                            {% set answers = r.questionnaire_answers | from_json %}
+                            {% if answers %}
+                              {% for key, value in answers.items() %}
+                              {% set is_correct = (value.correct if value is mapping and 'correct' in value else (value.answer == 'correct' if value is mapping and value.answer else value == 'correct')) %}
+                              <div class="flex items-start gap-3 p-2 rounded {% if is_correct %}bg-emerald-50 dark:bg-emerald-900/20 border-l-2 border-emerald-500{% else %}bg-red-50 dark:bg-red-900/20 border-l-2 border-red-500{% endif %}">
+                                <div class="flex-shrink-0 mt-0.5">
+                                  {% if is_correct %}
+                                    <i class="fas fa-check-circle text-emerald-600 dark:text-emerald-400"></i>
+                                  {% else %}
+                                    <i class="fas fa-times-circle text-red-600 dark:text-red-400"></i>
+                                  {% endif %}
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                  <div class="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                                    Question {{ key.replace('q', '') }}
+                                    {% if value is mapping and 'correct_answer' in value %}
+                                      <span class="text-emerald-600 dark:text-emerald-400 ml-2">(Correct: {{ value.correct_answer }})</span>
+                                    {% endif %}
+                                  </div>
+                                  <div class="text-slate-900 dark:text-slate-200">
+                                    {% if value is mapping %}
+                                      {% if value.correct %}
+                                        ✓ Answer: {{ value.answer }}
+                                      {% else %}
+                                        ✗ Your answer: {{ value.answer }}
+                                      {% endif %}
+                                    {% elif value == 'correct' %}
+                                      ✓ Correct
+                                    {% else %}
+                                      Answer: {{ value }}
+                                    {% endif %}
+                                  </div>
+                                </div>
+                              </div>
+                              {% endfor %}
+                            {% else %}
+                              <span class="text-slate-500 dark:text-slate-400 text-xs italic">No response data available</span>
+                            {% endif %}
+                          </div>
+                        </div>
+                        {% endif %}
+                      </div>
+                      {% endif %}
+                      <!-- Reminders Sent -->
+                      {% if r.reminder_count > 0 %}
+                      <div class="relative">
+                        <div class="absolute -left-[29px] w-4 h-4 rounded-full bg-amber-500 border-2 border-white dark:border-slate-900"></div>
+                        <div class="flex items-center gap-3">
+                          <i class="fas fa-bell text-amber-600 dark:text-amber-400 w-4"></i>
+                          <span class="text-slate-700 dark:text-slate-300 text-sm">Reminders Sent: {{ r.reminder_count }}</span>
+                          <span class="text-slate-500 text-xs">Last: {{ r.last_reminder_sent or 'N/A' }}</span>
+                        </div>
+                      </div>
+                      {% endif %}
+                    </div>
+                  </div>
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="8" class="px-4 py-8 text-center text-slate-500">No results recorded yet.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Timeline Tab -->
+      <div id="panel-timeline" class="tab-panel hidden">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-bold text-slate-100">Activity Timeline</h3>
+          <span class="text-sm text-slate-400">Most recent activity first</span>
+        </div>
+        <div id="timelineContainer" class="space-y-3 max-h-[500px] overflow-y-auto pr-2">
+          <!-- Timeline items will be generated by JS -->
+        </div>
+        <div id="timelineEmpty" class="hidden text-center py-12 text-slate-500">
+          <i class="fas fa-clock text-4xl mb-3 opacity-50"></i>
+          <p>No activity recorded yet</p>
+        </div>
+      </div>
+
+      <!-- SBU Breakdown Tab -->
+      <div id="panel-sbu" class="tab-panel hidden">
+        <h3 class="text-lg font-bold text-slate-100 mb-4">Results by SBU</h3>
+        <div id="sbuBreakdown" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <!-- SBU cards will be generated by JS -->
+        </div>
+      </div>
+    {% else %}
+      <div class="text-center py-12">
+        <i class="fas fa-exclamation-triangle text-4xl text-amber-500 mb-4"></i>
+        <p class="text-slate-400">Campaign not found</p>
+        <a href="{{ url_for('campaigns.list_campaigns') }}" class="mt-4 inline-block text-primary hover:underline">View all campaigns</a>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2"></div>
+
+{% if campaign %}
+<script>
+  const campaignId = {{ campaign.id }};
+  const campaignStatus = '{{ campaign.status }}';
+  let allResults = {{ results | tojson | safe }};
+  let pollInterval = null;
+
+  // Safe toast function with fallback
+  function showToast(message, type = 'info') {
+    const toastFunctions = {
+      success: window.toastSuccess,
+      error: window.toastError,
+      warning: window.toastWarning,
+      info: window.toastInfo
+    };
+    
+    const toastFn = toastFunctions[type];
+    if (typeof toastFn === 'function') {
+      toastFn(message);
+    } else {
+      // Fallback implementation
+      console.log(`[${type.toUpperCase()}] ${message}`);
+      const container = document.getElementById('toast-container');
+      if (container) {
+        const toast = document.createElement('div');
+        toast.className = 'transform transition-all duration-300 ease-out translate-x-full';
+        const icons = {
+          success: 'fas fa-check-circle text-green-400',
+          error: 'fas fa-exclamation-circle text-red-400',
+          warning: 'fas fa-exclamation-triangle text-yellow-400',
+          info: 'fas fa-info-circle text-blue-400'
+        };
+        const bgColors = {
+          success: 'border-green-500/30',
+          error: 'border-red-500/30',
+          warning: 'border-yellow-500/30',
+          info: 'border-blue-500/30'
+        };
+        toast.innerHTML = `
+          <div class="flex items-center gap-3 bg-gray-900/95 backdrop-blur-sm border ${bgColors[type]} rounded-lg px-4 py-3 shadow-xl min-w-[300px]">
+            <i class="${icons[type]}"></i>
+            <span class="text-white text-sm flex-1">${message}</span>
+            <button onclick="this.closest('div').parentElement.remove()" class="text-gray-400 hover:text-white">
+              <i class="fas fa-times text-xs"></i>
+            </button>
+          </div>
+        `;
+        container.appendChild(toast);
+        requestAnimationFrame(() => {
+          toast.classList.remove('translate-x-full');
+          toast.classList.add('translate-x-0');
+        });
+        setTimeout(() => {
+          toast.classList.add('translate-x-full');
+          setTimeout(() => toast.remove(), 300);
+        }, 4000);
+      } else {
+        alert(`${type.toUpperCase()}: ${message}`);
+      }
+    }
+  }
+
+  // Toggle timeline row expand/collapse (GoPhish style)
+  function toggleTimeline(resultId) {
+    const timelineRow = document.getElementById(`timeline-row-${resultId}`);
+    const expandIcon = document.getElementById(`expand-icon-${resultId}`);
+    
+    if (timelineRow.classList.contains('hidden')) {
+      // Collapse all other timelines first
+      document.querySelectorAll('[id^="timeline-row-"]').forEach(row => {
+        row.classList.add('hidden');
+      });
+      document.querySelectorAll('[id^="expand-icon-"]').forEach(icon => {
+        icon.classList.remove('rotate-90');
+      });
+      
+      // Expand this one
+      timelineRow.classList.remove('hidden');
+      expandIcon.classList.add('rotate-90');
+    } else {
+      // Collapse this one
+      timelineRow.classList.add('hidden');
+      expandIcon.classList.remove('rotate-90');
+    }
+  }
+
+  // Expand all timelines
+  function expandAllTimelines() {
+    document.querySelectorAll('[id^="timeline-row-"]').forEach(row => {
+      row.classList.remove('hidden');
+    });
+    document.querySelectorAll('[id^="expand-icon-"]').forEach(icon => {
+      icon.classList.add('rotate-90');
+    });
+    showToast('All timelines expanded', 'info');
+  }
+
+  // Collapse all timelines
+  function collapseAllTimelines() {
+    document.querySelectorAll('[id^="timeline-row-"]').forEach(row => {
+      row.classList.add('hidden');
+    });
+    document.querySelectorAll('[id^="expand-icon-"]').forEach(icon => {
+      icon.classList.remove('rotate-90');
+    });
+    showToast('All timelines collapsed', 'info');
+  }
+
+  // Tab switching
+  function switchTab(tabName) {
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.classList.remove('border-primary', 'text-primary');
+      btn.classList.add('border-transparent', 'text-slate-400');
+    });
+    document.querySelectorAll('.tab-panel').forEach(panel => {
+      panel.classList.add('hidden');
+    });
+    
+    document.getElementById(`tab-${tabName}`).classList.add('border-primary', 'text-primary');
+    document.getElementById(`tab-${tabName}`).classList.remove('border-transparent', 'text-slate-400');
+    document.getElementById(`panel-${tabName}`).classList.remove('hidden');
+    
+    if (tabName === 'timeline') renderTimeline();
+    if (tabName === 'sbu') renderSBUBreakdown();
+  }
+
+  // Populate SBU filter dropdown
+  function populateSBUFilter() {
+    const sbus = new Set();
+    document.querySelectorAll('.result-row').forEach(row => {
+      const sbu = row.dataset.sbu;
+      if (sbu) sbus.add(sbu);
+    });
+    
+    const select = document.getElementById('filterSBU');
+    if (!select) return;
+    
+    // Clear existing options except the first one
+    while (select.options.length > 1) {
+      select.remove(1);
+    }
+    
+    const sortedSBUs = Array.from(sbus).sort();
+    sortedSBUs.forEach(sbu => {
+      const option = document.createElement('option');
+      option.value = sbu;
+      option.textContent = sbu;
+      select.appendChild(option);
+    });
+  }
+
+  // Advanced Search/filter results
+  function filterResults() {
+    const search = document.getElementById('searchResults').value.toLowerCase();
+    const sbuFilter = document.getElementById('filterSBU').value;
+    const dateFilter = document.getElementById('filterDate').value;
+    
+    const showOpened = document.getElementById('filterOpened').checked;
+    const showClicked = document.getElementById('filterClicked').checked;
+    const showReported = document.getElementById('filterReported').checked;
+    const showQuestionnaire = document.getElementById('filterQuestionnaire').checked;
+    
+    // If no status checkboxes are checked, show all statuses (default behavior)
+    const filterByStatus = showOpened || showClicked || showReported || showQuestionnaire;
+
+    let visibleCount = 0;
+
+    document.querySelectorAll('.result-row').forEach(row => {
+      const name = (row.dataset.name || '').toLowerCase();
+      const email = (row.dataset.email || '').toLowerCase();
+      const sbu = row.dataset.sbu || '';
+      
+      // Text Search
+      const matchesSearch = !search || name.includes(search) || email.includes(search);
+      
+      // SBU Filter
+      const matchesSBU = !sbuFilter || sbu === sbuFilter;
+      
+      // Status Filter
+      let matchesStatus = true;
+      if (filterByStatus) {
+        matchesStatus = false;
+        if (showOpened && row.dataset.opened === '1') matchesStatus = true;
+        if (showClicked && row.dataset.clicked === '1') matchesStatus = true;
+        if (showReported && row.dataset.reported === '1') matchesStatus = true;
+        if (showQuestionnaire && row.dataset.questionnaire === '1') matchesStatus = true;
+      }
+      
+      // Date Filter
+      let matchesDate = true;
+      if (dateFilter !== 'all') {
+        // Get the most recent activity date
+        const dates = [
+            row.dataset.openedAt,
+            row.dataset.clickedAt,
+            row.dataset.reportedAt
+        ].filter(d => d).map(d => new Date(d));
+        
+        if (dates.length > 0) {
+            const mostRecent = new Date(Math.max(...dates));
+            const now = new Date();
+            const diffTime = Math.abs(now - mostRecent);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+            
+            if (dateFilter === 'today' && diffDays > 1) matchesDate = false;
+            if (dateFilter === '7days' && diffDays > 7) matchesDate = false;
+            if (dateFilter === '30days' && diffDays > 30) matchesDate = false;
+        } else {
+            // No activity, so it doesn't match any date range filter (except 'all')
+            matchesDate = false;
+        }
+      }
+
+      const isVisible = matchesSearch && matchesSBU && matchesStatus && matchesDate;
+      row.style.display = isVisible ? '' : 'none';
+      if (isVisible) visibleCount++;
+    });
+    
+    // Update count display
+    const countDisplay = document.getElementById('resultsCount');
+    if (countDisplay) {
+        const total = document.querySelectorAll('.result-row').length;
+        if (visibleCount === total) {
+            countDisplay.textContent = `Showing all ${total} results`;
+        } else {
+            countDisplay.textContent = `Showing ${visibleCount} of ${total} results`;
+        }
+    }
+  }
+
+  function resetFilters() {
+    document.getElementById('searchResults').value = '';
+    document.getElementById('filterSBU').value = '';
+    document.getElementById('filterDate').value = 'all';
+    document.getElementById('filterOpened').checked = false;
+    document.getElementById('filterClicked').checked = false;
+    document.getElementById('filterReported').checked = false;
+    document.getElementById('filterQuestionnaire').checked = false;
+    filterResults();
+  }
+
+  // Table sorting
+  let currentSort = { column: null, direction: 'asc' };
+  
+  function sortTable(column) {
+    const tbody = document.getElementById('resultsTableBody');
+    const rows = Array.from(tbody.querySelectorAll('.result-row'));
+    
+    // Toggle sort direction if clicking the same column
+    if (currentSort.column === column) {
+      currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+    } else {
+      currentSort.column = column;
+      currentSort.direction = 'asc';
+    }
+    
+    // Sort rows based on column
+    rows.sort((a, b) => {
+      let aVal, bVal;
+      
+      switch(column) {
+        case 'name':
+          aVal = a.dataset.name.toLowerCase();
+          bVal = b.dataset.name.toLowerCase();
+          break;
+        case 'email':
+          aVal = a.dataset.email.toLowerCase();
+          bVal = b.dataset.email.toLowerCase();
+          break;
+        case 'sbu':
+          aVal = a.dataset.sbu.toLowerCase();
+          bVal = b.dataset.sbu.toLowerCase();
+          break;
+        case 'opened':
+          // Sort by opened status, then by opened_at timestamp for those who opened
+          aVal = a.dataset.opened === '1' ? (a.dataset.openedAt || '0') : '0';
+          bVal = b.dataset.opened === '1' ? (b.dataset.openedAt || '0') : '0';
+          // For opened, we want those who opened first at the top when ascending
+          return currentSort.direction === 'asc' ? 
+            (bVal === '0' && aVal !== '0' ? -1 : (aVal === '0' && bVal !== '0' ? 1 : bVal.localeCompare(aVal))) :
+            (aVal === '0' && bVal !== '0' ? -1 : (bVal === '0' && aVal !== '0' ? 1 : aVal.localeCompare(bVal)));
+        case 'clicked':
+          // Sort by clicked status, then by clicked_at timestamp for those who clicked
+          aVal = a.dataset.clicked === '1' ? (a.dataset.clickedAt || '0') : '0';
+          bVal = b.dataset.clicked === '1' ? (b.dataset.clickedAt || '0') : '0';
+          // For clicked, we want those who clicked first at the top when ascending
+          return currentSort.direction === 'asc' ? 
+            (bVal === '0' && aVal !== '0' ? -1 : (aVal === '0' && bVal !== '0' ? 1 : bVal.localeCompare(aVal))) :
+            (aVal === '0' && bVal !== '0' ? -1 : (bVal === '0' && aVal !== '0' ? 1 : aVal.localeCompare(bVal)));
+        case 'reported':
+          aVal = parseInt(a.dataset.reported);
+          bVal = parseInt(b.dataset.reported);
+          break;
+        case 'questionnaire':
+          aVal = parseFloat(a.dataset.questionnaire);
+          bVal = parseFloat(b.dataset.questionnaire);
+          break;
+        case 'reminders':
+          aVal = parseInt(a.dataset.reminders);
+          bVal = parseInt(b.dataset.reminders);
+          break;
+        case 'clicked_at':
+          aVal = a.dataset.clickedAt || '';
+          bVal = b.dataset.clickedAt || '';
+          break;
+        default:
+          return 0;
+      }
+      
+      if (column === 'opened' || column === 'clicked') {
+        return 0; // Already handled above
+      }
+      
+      // Handle empty values
+      if (aVal === '' && bVal !== '') return 1;
+      if (aVal !== '' && bVal === '') return -1;
+      
+      // Compare values
+      if (typeof aVal === 'string') {
+        return currentSort.direction === 'asc' ? 
+          aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      } else {
+        return currentSort.direction === 'asc' ? 
+          (aVal - bVal) : (bVal - aVal);
+      }
+    });
+    
+    // Re-append rows in sorted order (keeping timeline rows with their parent)
+    rows.forEach(row => {
+      const rowId = row.querySelector('[id^="expand-icon-"]').id.replace('expand-icon-', '');
+      const timelineRow = document.getElementById(`timeline-row-${rowId}`);
+      
+      tbody.appendChild(row);
+      if (timelineRow) {
+        tbody.appendChild(timelineRow);
+      }
+    });
+    
+    // Update sort indicators in headers
+    updateSortIndicators(column);
+  }
+  
+  function updateSortIndicators(activeColumn) {
+    // Reset all sort icons
+    document.querySelectorAll('thead th i.fa-sort, thead th i.fa-sort-up, thead th i.fa-sort-down').forEach(icon => {
+      icon.className = 'fas fa-sort text-slate-400';
+    });
+    
+    // Update active column icon
+    const columnMap = {
+      'name': 0, 'email': 1, 'sbu': 2, 'opened': 3, 'clicked': 4, 
+      'reported': 5, 'questionnaire': 6, 'reminders': 7, 'clicked_at': 8
+    };
+    
+    const thIndex = columnMap[activeColumn];
+    if (thIndex !== undefined) {
+      const th = document.querySelectorAll('thead th')[thIndex];
+      const icon = th.querySelector('i');
+      if (icon) {
+        icon.className = currentSort.direction === 'asc' ? 
+          'fas fa-sort-up text-primary' : 
+          'fas fa-sort-down text-primary';
+      }
+    }
+  }
+
+  // Update status (reported/compromised)
+  function updateStatus(resultId, field, value) {
+    const checkbox = event.target;
+    const originalState = !value;
+    
+    // Disable checkbox during update
+    checkbox.disabled = true;
+    checkbox.style.opacity = '0.5';
+    
+    fetch('/api/dashboard/update_result', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ result_id: resultId, field: field, value: value })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (!data.success) {
+        showToast('Failed to update: ' + data.error, 'error');
+        // Revert checkbox on error
+        checkbox.checked = originalState;
+      } else {
+        showToast('Status updated', 'success');
+        updateStats();
+      }
+    })
+    .catch(err => {
+      showToast('Error: ' + err, 'error');
+      // Revert checkbox on error
+      checkbox.checked = originalState;
+    })
+    .finally(() => {
+      // Re-enable checkbox
+      checkbox.disabled = false;
+      checkbox.style.opacity = '1';
+    });
+  }
+
+  // Update stats
+  function updateStats() {
+    const reported = document.querySelectorAll('input[onchange*="reported"]:checked').length;
+    document.getElementById('stat-reported').textContent = reported;
+  }
+
+  // Live polling for running campaigns
+  function startPolling() {
+    if (campaignStatus === 'running') {
+      pollInterval = setInterval(async () => {
+        try {
+          const response = await fetch(`/campaigns/results_json/${campaignId}`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+              updateResultsFromPoll(data);
+            }
+          }
+        } catch(e) {
+          console.error('Polling error:', e);
+        }
+      }, 10000);
+    }
+  }
+
+  // Request stop for a running campaign
+  async function stopCampaign() {
+    if (!confirm('⚠️ Are you sure you want to stop this campaign?\n\nThis will immediately halt email sending and end the campaign.')) {
+      return;
+    }
+    const btn = document.getElementById('stopBtn');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Stopping...';
+    }
+    try {
+      const jobId = '{{ campaign.job_id }}';
+      const resp = await fetch(`/campaigns/stop/${jobId}`, { method: 'POST' });
+      const data = await resp.json();
+      if (data.success) {
+        if (typeof showToast === 'function') showToast('Stop requested', 'success');
+        // update UI
+        const dot = document.getElementById('campaign-status-dot');
+        const text = document.getElementById('campaign-status-text');
+        if (dot) { dot.classList.remove('bg-emerald-400','animate-pulse'); dot.classList.add('bg-slate-400'); }
+        if (text) text.textContent = 'Stopped';
+        // stop polling
+        if (pollInterval) clearInterval(pollInterval);
+      } else {
+        if (typeof showToast === 'function') showToast('Failed to stop: ' + (data.message || data.error || 'unknown'), 'error');
+        if (btn) btn.disabled = false;
+      }
+    } catch (e) {
+      if (typeof showToast === 'function') showToast('Error requesting stop: ' + e, 'error');
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  function updateResultsFromPoll(data) {
+    const newResults = data.results || data;
+    
+    // Update stats
+    const sent = newResults.length;
+    const opened = newResults.filter(r => r.opened).length;
+    const clicked = newResults.filter(r => r.clicked).length;
+    const reported = newResults.filter(r => r.reported).length;
+    const questionnaire = newResults.filter(r => r.questionnaire_completed).length;
+    const clickRate = sent > 0 ? ((clicked / sent) * 100).toFixed(1) : 0;
+    
+    document.getElementById('stat-sent').textContent = sent;
+    document.getElementById('stat-opened').textContent = opened;
+    document.getElementById('stat-clicked').textContent = clicked;
+    document.getElementById('stat-reported').textContent = reported;
+    document.getElementById('stat-questionnaire').textContent = questionnaire;
+    document.getElementById('stat-click-rate').textContent = clickRate + '%';
+    
+    // Update campaign status if provided
+    if (data.campaign_status && data.campaign_status !== campaignStatus) {
+      const dot = document.getElementById('campaign-status-dot');
+      const text = document.getElementById('campaign-status-text');
+      const stopBtn = document.getElementById('stopBtn');
+      
+      if (data.campaign_status === 'completed' || data.campaign_status === 'stopped') {
+        if (dot) {
+          dot.classList.remove('bg-emerald-500', 'bg-emerald-400', 'animate-pulse');
+          dot.classList.add('bg-blue-500', 'bg-blue-400');
+        }
+        if (text) text.textContent = data.campaign_status === 'completed' ? 'Completed' : 'Stopped';
+        if (stopBtn) stopBtn.style.display = 'none';
+        if (pollInterval) {
+          clearInterval(pollInterval);
+          pollInterval = null;
+        }
+        showToast(`Campaign ${data.campaign_status}`, 'info');
+      }
+    }
+    
+    allResults = newResults;
+  }
+
+  // Timeline rendering
+  function renderTimeline() {
+    const container = document.getElementById('timelineContainer');
+    const emptyState = document.getElementById('timelineEmpty');
+    
+    // Build timeline events
+    const events = [];
+    allResults.forEach(r => {
+      if (r.opened_at) {
+        events.push({ type: 'opened', email: r.email, name: `${r.first_name} ${r.last_name}`, time: r.opened_at });
+      }
+      if (r.clicked_at) {
+        events.push({ type: 'clicked', email: r.email, name: `${r.first_name} ${r.last_name}`, time: r.clicked_at });
+      }
+    });
+    
+    // Sort by time descending
+    events.sort((a, b) => new Date(b.time) - new Date(a.time));
+    
+    if (events.length === 0) {
+      container.innerHTML = '';
+      emptyState.classList.remove('hidden');
+      return;
+    }
+    
+    emptyState.classList.add('hidden');
+    
+    const icons = {
+      opened: { icon: 'fas fa-envelope-open', color: 'text-emerald-400', bg: 'bg-emerald-500/20', label: 'opened email' },
+      clicked: { icon: 'fas fa-mouse-pointer', color: 'text-orange-400', bg: 'bg-orange-500/20', label: 'clicked link' }
+    };
+    
+    container.innerHTML = events.slice(0, 100).map(e => `
+      <div class="flex items-start gap-4 p-3 bg-slate-900/50 rounded-lg border border-slate-700/50">
+        <div class="w-10 h-10 rounded-full ${icons[e.type].bg} flex items-center justify-center flex-shrink-0">
+          <i class="${icons[e.type].icon} ${icons[e.type].color}"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-slate-200 font-medium truncate">${e.name}</p>
+          <p class="text-slate-400 text-sm truncate">${e.email} ${icons[e.type].label}</p>
+        </div>
+        <div class="text-xs text-slate-500 flex-shrink-0">${formatTime(e.time)}</div>
+      </div>
+    `).join('');
+  }
+
+  function formatTime(timeStr) {
+    if (!timeStr) return '';
+    const date = new Date(timeStr);
+    return date.toLocaleString();
+  }
+
+  // SBU Breakdown
+  function renderSBUBreakdown() {
+    const container = document.getElementById('sbuBreakdown');
+    
+    // Group by SBU
+    const sbuData = {};
+    allResults.forEach(r => {
+      const sbu = r.sbu || 'Unknown';
+      if (!sbuData[sbu]) {
+        sbuData[sbu] = { total: 0, opened: 0, clicked: 0, questionnaire: 0 };
+      }
+      sbuData[sbu].total++;
+      if (r.opened) sbuData[sbu].opened++;
+      if (r.clicked) sbuData[sbu].clicked++;
+      if (r.questionnaire_completed) sbuData[sbu].questionnaire++;
+    });
+    
+    container.innerHTML = Object.entries(sbuData).map(([sbu, data]) => `
+      <div class="bg-slate-900 rounded-lg p-5 border border-slate-700">
+        <div class="flex items-center justify-between mb-4">
+          <h4 class="font-bold text-slate-100">${sbu}</h4>
+          <span class="text-sm text-slate-400">${data.total} targets</span>
+        </div>
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-slate-400 text-sm">Opened</span>
+            <div class="flex items-center gap-2">
+              <div class="w-24 h-2 bg-slate-700 rounded-full overflow-hidden">
+                <div class="h-full bg-emerald-400 rounded-full" style="width: ${data.total ? (data.opened / data.total * 100) : 0}%"></div>
+              </div>
+              <span class="text-emerald-400 text-sm font-medium w-12 text-right">${data.total ? Math.round(data.opened / data.total * 100) : 0}%</span>
+            </div>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-slate-400 text-sm">Clicked</span>
+            <div class="flex items-center gap-2">
+              <div class="w-24 h-2 bg-slate-700 rounded-full overflow-hidden">
+                <div class="h-full bg-orange-400 rounded-full" style="width: ${data.total ? (data.clicked / data.total * 100) : 0}%"></div>
+              </div>
+              <span class="text-orange-400 text-sm font-medium w-12 text-right">${data.total ? Math.round(data.clicked / data.total * 100) : 0}%</span>
+            </div>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-slate-400 text-sm">Questionnaire</span>
+            <div class="flex items-center gap-2">
+              <div class="w-24 h-2 bg-slate-700 rounded-full overflow-hidden">
+                <div class="h-full bg-purple-400 rounded-full" style="width: ${data.total ? (data.questionnaire / data.total * 100) : 0}%"></div>
+              </div>
+              <span class="text-purple-400 text-sm font-medium w-12 text-right">${data.total ? Math.round(data.questionnaire / data.total * 100) : 0}%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // Export Excel (.xlsx) — full formatted report
+  function exportXlsx() {
+    if (allResults.length === 0) {
+      showToast('No results to export', 'warning');
+      return;
+    }
+    window.location.href = `/api/export/campaign_xlsx?campaign_id=${campaignId}`;
+    showToast('Preparing Excel report…', 'success');
+  }
+
+  // Export CSV (kept for legacy use)
+  function exportResults() {
+    exportXlsx();
+  }
+
+  // Export PDF (generates a printable report)
+  function exportPDF() {
+    const total = allResults.length;
+    const opened = allResults.filter(r => r.opened).length;
+    const clicked = allResults.filter(r => r.clicked).length;
+    const reported = allResults.filter(r => r.reported).length;
+    const questionnaireCompleted = allResults.filter(r => r.questionnaire_completed).length;
+    
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Campaign Report - {{ campaign.name }}</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 40px; color: #333; }
+          h1 { color: #1e40af; margin-bottom: 5px; }
+          .subtitle { color: #666; margin-bottom: 30px; }
+          .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px; }
+          .stat-box { background: #f3f4f6; padding: 20px; border-radius: 8px; text-align: center; }
+          .stat-value { font-size: 32px; font-weight: bold; }
+          .stat-label { color: #666; font-size: 14px; margin-top: 5px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+          th { background: #1e40af; color: white; }
+          tr:nth-child(even) { background: #f9fafb; }
+          .check { color: green; }
+          .footer { margin-top: 30px; text-align: center; color: #999; font-size: 12px; }
+        </style>
+      </head>
+      <body>
+        <h1>📊 Campaign Report</h1>
+        <p class="subtitle">{{ campaign.name }} - Generated ${new Date().toLocaleDateString()}</p>
+        
+        <div class="stats-grid">
+          <div class="stat-box">
+            <div class="stat-value" style="color: #3b82f6">${total}</div>
+            <div class="stat-label">Total Sent</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" style="color: #10b981">${opened}</div>
+            <div class="stat-label">Opened (${total ? Math.round(opened/total*100) : 0}%)</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" style="color: #f59e0b">${clicked}</div>
+            <div class="stat-label">Clicked (${total ? Math.round(clicked/total*100) : 0}%)</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" style="color: #8b5cf6">${reported}</div>
+            <div class="stat-label">Reported</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" style="color: #a855f7">${questionnaireCompleted}</div>
+            <div class="stat-label">Questionnaire Completed</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" style="color: #f59e0b">${total ? Math.round(clicked/total*100) : 0}%</div>
+            <div class="stat-label">Click Rate</div>
+          </div>
+        </div>
+        
+        <h2>Detailed Results</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>SBU</th>
+              <th>Opened</th>
+              <th>Clicked</th>
+              <th>Reported</th>
+              <th>Questionnaire</th>
+              <th>Reminders</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${allResults.map(r => `
+              <tr>
+                <td>${r.first_name || ''} ${r.last_name || ''}</td>
+                <td>${r.email || ''}</td>
+                <td>${r.sbu || '-'}</td>
+                <td>${r.opened ? '✓' : '-'}</td>
+                <td>${r.clicked ? '✓' : '-'}</td>
+                <td>${r.reported ? '✓' : '-'}</td>
+                <td>${r.questionnaire_completed ? '✓ (' + (r.questionnaire_score || 0) + '%)' : '-'}</td>
+                <td>${r.reminder_count || '0'}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        
+        <div class="footer">
+          Phishing Simulation Platform - Confidential Report
+        </div>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
+    showToast('PDF report opened for printing', 'success');
+  }
+
+  // Note: showToast function defined at top of script
+
+  // Initialize
+  document.addEventListener('DOMContentLoaded', () => {
+    startPolling();
+    populateSBUFilter();
+  });
+</script>
+{% endif %}
+{% endblock %}

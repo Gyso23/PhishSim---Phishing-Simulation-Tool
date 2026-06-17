@@ -1,0 +1,893 @@
+{% extends "base.html" %}
+
+{% block title %}Templates - PhishSim{% endblock %}
+
+{% block extra_head %}
+<style>
+  /* Monaco editor line highlight when clicking in the live preview */
+  .preview-click-highlight {
+    background: rgba(59, 130, 246, 0.18) !important;
+    border-left: 3px solid #3b82f6 !important;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+{% raw %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
+
+<div class="space-y-6 animate-fade-in max-w-[95%] mx-auto">
+  <div class="flex flex-wrap justify-between items-center gap-4">
+    <div>
+      <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100">Email Templates</h1>
+      <p class="text-slate-500 dark:text-slate-400">Design and manage phishing email templates</p>
+    </div>
+    <div class="flex gap-3">
+      <button onclick="showCreateTemplateModal()" class="flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium shadow-lg shadow-emerald-900/20 transition-all btn-hover">
+        <i class="fas fa-plus mr-2"></i> Create Template
+      </button>
+    </div>
+  </div>
+
+  <div class="flex flex-wrap gap-4 items-center">
+    <div class="flex-1 min-w-[200px]">
+      <input type="text" id="searchTemplates" placeholder="Search templates..." class="w-full px-4 py-2 glass-panel border border-slate-300 dark:border-white/10 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:border-primary input-focus bg-white dark:bg-transparent" oninput="filterTemplates()">
+    </div>
+    <select id="tagFilter" class="px-4 py-2 glass-panel border border-slate-300 dark:border-white/10 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:border-primary input-focus bg-white dark:bg-transparent" onchange="filterTemplates()">
+      <option value="" class="bg-white dark:bg-slate-900">All Tags</option>
+      <option value="credential" class="bg-white dark:bg-slate-900">Credential Harvest</option>
+      <option value="awareness" class="bg-white dark:bg-slate-900">Awareness</option>
+      <option value="microsoft" class="bg-white dark:bg-slate-900">Microsoft</option>
+    </select>
+  </div>
+
+  <div id="templatesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+  <div id="emptyState" class="hidden text-center py-16 glass-card rounded-xl border border-slate-200 dark:border-white/10">
+    <i class="fas fa-file-alt text-6xl text-slate-400 dark:text-slate-600 mb-4"></i>
+    <h3 class="text-xl font-semibold text-slate-700 dark:text-slate-300 mb-2">No Templates Yet</h3>
+    <p class="text-slate-500 mb-6">Create your first email template to get started</p>
+    <button onclick="showCreateTemplateModal()" class="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium btn-hover">
+      <i class="fas fa-plus mr-2"></i> Create Template
+    </button>
+  </div>
+  <div id="loadingState" class="text-center py-16">
+    <i class="fas fa-spinner fa-spin text-4xl text-primary mb-4"></i>
+    <p class="text-slate-500 dark:text-slate-400">Loading templates...</p>
+  </div>
+</div>
+
+<script>
+var monacoEditor = null;
+var allTemplates = [];
+var currentEditId = null;
+var _cidPreviewMap = {};
+
+document.addEventListener('DOMContentLoaded', function() {
+  loadTemplates();
+  loadSmtpProfiles();
+});
+
+function loadSmtpProfiles() {
+  fetch('/smtp-profiles', { headers: { 'Accept': 'application/json' } })
+    .then(function(r) { return r.json(); })
+    .then(function(profiles) {
+      var sel = document.getElementById('testSmtpProfile');
+      sel.innerHTML = '<option value="" class="bg-white dark:bg-slate-900">Select SMTP Profile</option>';
+      profiles.forEach(function(p) {
+        var opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.name + ' (' + p.smtp_server + ')';
+        opt.className = 'bg-white dark:bg-slate-900';
+        sel.appendChild(opt);
+      });
+    });
+}
+
+function loadTemplates() {
+  document.getElementById('loadingState').classList.remove('hidden');
+  document.getElementById('templatesGrid').innerHTML = '';
+  document.getElementById('emptyState').classList.add('hidden');
+  fetch('/templates/list')
+    .then(function(r) { return r.json(); })
+    .then(function(templates) {
+      allTemplates = templates;
+      document.getElementById('loadingState').classList.add('hidden');
+      if (templates.length === 0) {
+        document.getElementById('emptyState').classList.remove('hidden');
+      } else {
+        renderTemplates(templates);
+      }
+    })
+    .catch(function(err) {
+      document.getElementById('loadingState').classList.add('hidden');
+      console.error('Error loading templates:', err);
+    });
+}
+
+function renderTemplates(templates) {
+  var grid = document.getElementById('templatesGrid');
+  grid.innerHTML = '';
+  templates.forEach(function(t) {
+    var tags = t.tags ? t.tags.split(',').map(function(tag) { return tag.trim(); }).filter(function(tag) { return tag; }) : [];
+    var tagsHtml = tags.map(function(tag) {
+      return '<span class="px-2 py-0.5 bg-blue-500/10 dark:bg-blue-500/10 text-blue-600 dark:text-blue-300 border border-blue-500/20 rounded text-xs">' + tag + '</span>';
+    }).join('');
+    var card = document.createElement('div');
+    card.className = 'glass-card rounded-xl border border-slate-200 dark:border-white/10 overflow-hidden hover:border-slate-300 dark:hover:border-white/20 transition-all group';
+    card.innerHTML = '<div class="h-40 bg-white relative overflow-hidden">' +
+      '<iframe class="w-full h-full border-0 pointer-events-none" srcdoc="' + escapeHtml(t.html_content || '<p style=color:#999;text-align:center;padding:40px>No preview</p>') + '"></iframe>' +
+      '<div class="absolute inset-0 bg-gradient-to-t from-slate-900/90 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-4">' +
+      '<button onclick="editTemplate(' + t.id + ')" class="px-4 py-2 bg-white/20 hover:bg-white/30 backdrop-blur text-white rounded-lg text-sm font-medium border border-white/20 transition-all"><i class="fas fa-expand mr-2"></i>Open Editor</button>' +
+      '</div></div>' +
+      '<div class="p-4"><h3 class="font-semibold text-slate-900 dark:text-slate-100 mb-1 truncate">' + escapeHtml(t.name) + '</h3>' +
+      '<p class="text-slate-600 dark:text-slate-400 text-sm mb-3 truncate">' + escapeHtml(t.subject || 'No subject') + '</p>' +
+      '<div class="flex flex-wrap gap-1 mb-3">' + tagsHtml + '</div>' +
+      '<div class="flex justify-between items-center">' +
+      '<span class="text-slate-600 dark:text-slate-500 text-xs">' + formatDate(t.updated_at || t.created_at) + '</span>' +
+      '<div class="flex gap-1">' +
+      '<button onclick="duplicateTemplate(' + t.id + ')" class="p-2 text-slate-600 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-white/5 rounded transition-colors" title="Duplicate"><i class="fas fa-copy"></i></button>' +
+      '<button onclick="deleteTemplate(' + t.id + ')" class="p-2 text-slate-600 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-slate-100 dark:hover:bg-white/5 rounded transition-colors" title="Delete"><i class="fas fa-trash"></i></button>' +
+      '</div></div></div>';
+    grid.appendChild(card);
+  });
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  return new Date(dateStr).toLocaleDateString();
+}
+
+function filterTemplates() {
+  var search = document.getElementById('searchTemplates').value.toLowerCase();
+  var tag = document.getElementById('tagFilter').value.toLowerCase();
+  var filtered = allTemplates.filter(function(t) {
+    var matchSearch = !search || t.name.toLowerCase().includes(search) || (t.subject && t.subject.toLowerCase().includes(search));
+    var matchTag = !tag || (t.tags && t.tags.toLowerCase().includes(tag));
+    return matchSearch && matchTag;
+  });
+  if (filtered.length === 0 && allTemplates.length > 0) {
+    document.getElementById('templatesGrid').innerHTML = '<div class="col-span-full text-center py-12 text-slate-400"><i class="fas fa-search text-4xl mb-3"></i><p>No templates match your search</p></div>';
+  } else {
+    renderTemplates(filtered);
+  }
+}
+
+function openEditorModal() {
+  document.getElementById('editorModal').classList.remove('hidden');
+  var sidebar = document.getElementById('main-sidebar');
+  if (sidebar) sidebar.style.display = 'none';
+  loadHostedImages();
+}
+
+function showCreateTemplateModal() {
+  currentEditId = null;
+  _cidPreviewMap = {};
+  document.getElementById('templateId').value = '';
+  document.getElementById('templateName').value = '';
+  document.getElementById('templateSubject').value = '';
+  document.getElementById('templateSenderName').value = '';
+  document.getElementById('templateSenderEmail').value = '';
+  document.getElementById('templateTags').value = '';
+  document.getElementById('editorTitle').textContent = 'New Template';
+  renderCidImages([]);
+  openEditorModal();
+  initMonacoEditor(getDefaultEmailTemplate());
+}
+
+function editTemplate(id) {
+  fetch('/templates/get/' + id)
+    .then(function(r) { return r.json(); })
+    .then(function(t) {
+      currentEditId = t.id;
+      document.getElementById('templateId').value = t.id;
+      document.getElementById('templateName').value = t.name || '';
+      document.getElementById('templateSubject').value = t.subject || '';
+      document.getElementById('templateSenderName').value = t.sender_name || '';
+      document.getElementById('templateSenderEmail').value = t.sender_email || '';
+      document.getElementById('templateTags').value = t.tags || '';
+      document.getElementById('editorTitle').textContent = 'Edit: ' + t.name;
+      renderCidImages(t.images || []);
+      loadCidImages(t.id);
+      loadAttachments(t.id);
+      openEditorModal();
+      initMonacoEditor(t.html_content || getDefaultEmailTemplate());
+    });
+}
+
+// ── CID Image Manager ──────────────────────────────────────────────────────
+
+function renderCidImages(images) {
+  var list = document.getElementById('cidImageList');
+  var none = document.getElementById('cidNoImages');
+  var templateId = document.getElementById('templateId').value;
+  _cidPreviewMap = {};
+  list.innerHTML = '';
+  if (!images || images.length === 0) {
+    none.style.display = templateId ? 'block' : 'block';
+    none.textContent = templateId ? 'No images yet. Upload one above.' : 'Save the template first, then upload images.';
+    return;
+  }
+  none.style.display = 'none';
+  images.forEach(function(img) {
+    _cidPreviewMap[img.cid] = img.preview;
+    var row = document.createElement('div');
+    row.className = 'flex items-center gap-2 p-2 glass-panel rounded-lg border border-slate-200 dark:border-white/10 text-xs';
+    row.innerHTML =
+      '<img src="' + img.preview + '" class="w-8 h-8 object-cover rounded flex-shrink-0 border border-slate-200 dark:border-white/10" onerror="this.src=\'data:image/svg+xml,<svg xmlns=\\\'http://www.w3.org/2000/svg\\\' width=\\\'32\\\' height=\\\'32\\\'><rect width=\\\'32\\\' height=\\\'32\\\' fill=\\\'%23334155\\\'/></svg>\'">' +
+      '<div class="flex-1 min-w-0">' +
+        '<div class="text-slate-700 dark:text-slate-200 font-medium truncate">' + img.filename + '</div>' +
+        '<button onclick="insertCidSnippet(\'' + img.cid + '\')" class="text-blue-500 hover:text-blue-400 font-mono truncate max-w-full text-left" title="Click to insert into editor">cid:' + img.cid + '</button>' +
+      '</div>' +
+      '<button onclick="deleteCidImage(' + img.id + ', this)" class="flex-shrink-0 text-red-400 hover:text-red-300 p-1 rounded transition-colors" title="Remove image"><i class="fas fa-trash-alt"></i></button>';
+    list.appendChild(row);
+  });
+}
+
+function uploadCidImage(input) {
+  var templateId = document.getElementById('templateId').value;
+  if (!templateId) {
+    toastWarning('Please save the template first before uploading images.');
+    input.value = '';
+    return;
+  }
+  var file = input.files[0];
+  if (!file) return;
+  var formData = new FormData();
+  formData.append('file', file);
+  fetch('/templates/' + templateId + '/images', { method: 'POST', body: formData })
+    .then(function(r) { return r.json(); })
+    .then(function(res) {
+      if (res.success) {
+        toastSuccess('Image "' + res.cid + '" uploaded. Use <img src="cid:' + res.cid + '">');
+        loadCidImages(templateId);
+      } else {
+        toastError(res.error || 'Upload failed');
+      }
+    })
+    .catch(function() { toastError('Upload failed'); });
+  input.value = '';
+}
+
+function loadCidImages(templateId) {
+  if (!templateId) return;
+  fetch('/templates/' + templateId + '/images')
+    .then(function(r) { return r.json(); })
+    .then(function(images) { renderCidImages(images); });
+}
+
+function deleteCidImage(imageId, btn) {
+  var templateId = document.getElementById('templateId').value;
+  if (!templateId) return;
+  if (!confirm('Remove this embedded image?')) return;
+  fetch('/templates/' + templateId + '/images/' + imageId, { method: 'DELETE' })
+    .then(function(r) { return r.json(); })
+    .then(function(res) {
+      if (res.success) { loadCidImages(templateId); toastSuccess('Image removed'); }
+      else { toastError('Could not remove image'); }
+    });
+}
+
+function insertCidSnippet(cid) {
+  if (!monacoEditor) return;
+  var snippet = '<img src="cid:' + cid + '" alt="' + cid + '" style="max-width:100%;" />';
+  var selection = monacoEditor.getSelection();
+  monacoEditor.executeEdits('', [{ range: selection, text: snippet, forceMoveMarkers: true }]);
+  monacoEditor.focus();
+  toastInfo('Inserted <img src="cid:' + cid + '">');
+}
+
+// ── Hosted Image Library ──────────────────────────────────────────────────────
+function loadHostedImages() {
+  fetch('/api/images')
+    .then(r => r.json())
+    .then(images => {
+      var list = document.getElementById('hostedImageList');
+      if (!images.length) {
+        list.innerHTML = '<p class="text-slate-400 text-xs italic">No images yet.</p>';
+        return;
+      }
+      list.innerHTML = images.map(img =>
+        '<div class="flex items-center gap-2 bg-slate-50 dark:bg-white/5 rounded p-1.5">' +
+          '<img src="' + img.url + '" class="w-8 h-8 object-cover rounded flex-shrink-0 border border-slate-200 dark:border-white/10" onerror="this.style.display=\'none\'">' +
+          '<div class="flex-1 min-w-0">' +
+            '<p class="text-xs text-slate-700 dark:text-slate-200 truncate font-medium">' + img.filename + '</p>' +
+            '<button onclick="insertHostedSnippet(\'' + img.url.replace(/'/g, "\\'") + '\')" class="text-blue-500 hover:text-blue-400 font-mono text-xs truncate max-w-full text-left block" title="Click to insert into editor">Insert &lt;img&gt;</button>' +
+            '<button onclick="copyToClipboard(\'' + img.url.replace(/'/g, "\\'") + '\')" class="text-slate-400 hover:text-slate-300 text-xs block truncate max-w-full text-left" title="Copy URL">Copy URL</button>' +
+          '</div>' +
+          '<button onclick="deleteHostedImage(\'' + img.filename.replace(/'/g, "\\'") + '\')" class="text-red-400 hover:text-red-300 flex-shrink-0 p-1" title="Delete"><i class="fas fa-trash text-xs"></i></button>' +
+        '</div>'
+      ).join('');
+    })
+    .catch(() => {
+      document.getElementById('hostedImageList').innerHTML = '<p class="text-red-400 text-xs">Failed to load images.</p>';
+    });
+}
+
+function uploadHostedImage(input) {
+  var file = input.files[0];
+  if (!file) return;
+  var fd = new FormData();
+  fd.append('file', file);
+  fetch('/api/images', { method: 'POST', body: fd })
+    .then(r => r.json())
+    .then(res => {
+      if (res.error) { toastError(res.error); return; }
+      toastSuccess('Uploaded! URL: ' + res.url);
+      loadHostedImages();
+    })
+    .catch(() => toastError('Upload failed.'));
+  input.value = '';
+}
+
+function deleteHostedImage(filename) {
+  if (!confirm('Delete "' + filename + '"?')) return;
+  fetch('/api/images/' + encodeURIComponent(filename), { method: 'DELETE' })
+    .then(r => r.json())
+    .then(res => {
+      if (res.error) { toastError(res.error); return; }
+      loadHostedImages();
+    });
+}
+
+function insertHostedSnippet(url) {
+  if (!monacoEditor) return;
+  var snippet = '<img src="' + url + '" alt="image" style="max-width:100%;" />';
+  var selection = monacoEditor.getSelection();
+  monacoEditor.executeEdits('', [{ range: selection, text: snippet, forceMoveMarkers: true }]);
+  monacoEditor.focus();
+  toastInfo('Inserted hosted image.');
+}
+
+function copyToClipboard(text) {
+  navigator.clipboard.writeText(text).then(() => toastInfo('URL copied to clipboard.'));
+}
+
+// ── Attachment Manager ────────────────────────────────────────────────────────
+function loadAttachments(templateId) {
+  if (!templateId) return;
+  fetch('/templates/' + templateId + '/attachments')
+    .then(function(r) { return r.json(); })
+    .then(function(atts) {
+      var list = document.getElementById('attachmentList');
+      var noItems = document.getElementById('attachmentNoItems');
+      if (!atts.length) {
+        list.innerHTML = '';
+        if (noItems) noItems.style.display = '';
+        return;
+      }
+      if (noItems) noItems.style.display = 'none';
+      var icons = { pdf: 'fa-file-pdf text-red-400', doc: 'fa-file-word text-blue-400', docx: 'fa-file-word text-blue-400',
+        xls: 'fa-file-excel text-green-400', xlsx: 'fa-file-excel text-green-400',
+        ppt: 'fa-file-powerpoint text-orange-400', pptx: 'fa-file-powerpoint text-orange-400',
+        zip: 'fa-file-archive text-yellow-400', txt: 'fa-file-alt text-slate-400', csv: 'fa-file-csv text-green-300' };
+      list.innerHTML = atts.map(function(a) {
+        var ext = a.filename.split('.').pop().toLowerCase();
+        var icon = icons[ext] || 'fa-file text-slate-400';
+        return '<div class="flex items-center gap-2 bg-slate-50 dark:bg-white/5 rounded p-1.5">' +
+          '<i class="fas ' + icon + ' text-lg flex-shrink-0 w-5 text-center"></i>' +
+          '<div class="flex-1 min-w-0">' +
+            '<p class="text-xs text-slate-700 dark:text-slate-200 truncate font-medium">' + a.filename + '</p>' +
+            '<p class="text-xs text-slate-400">' + a.size_kb + ' KB</p>' +
+          '</div>' +
+          '<button onclick="deleteAttachment(' + a.id + ')" class="text-red-400 hover:text-red-300 flex-shrink-0 p-1" title="Remove attachment"><i class="fas fa-trash text-xs"></i></button>' +
+        '</div>';
+      }).join('');
+    });
+}
+
+function uploadAttachment(input) {
+  var file = input.files[0];
+  if (!file) return;
+  var templateId = document.getElementById('templateId').value;
+  if (!templateId) { toastWarning('Save the template first before adding attachments.'); input.value = ''; return; }
+  var fd = new FormData();
+  fd.append('file', file);
+  fetch('/templates/' + templateId + '/attachments', { method: 'POST', body: fd })
+    .then(function(r) { return r.json(); })
+    .then(function(res) {
+      if (res.error) { toastError(res.error); return; }
+      toastSuccess('"' + res.filename + '" attached (' + res.size_kb + ' KB)');
+      loadAttachments(templateId);
+    })
+    .catch(function() { toastError('Upload failed.'); });
+  input.value = '';
+}
+
+function deleteAttachment(attId) {
+  var templateId = document.getElementById('templateId').value;
+  if (!templateId) return;
+  if (!confirm('Remove this attachment?')) return;
+  fetch('/templates/' + templateId + '/attachments/' + attId, { method: 'DELETE' })
+    .then(function(r) { return r.json(); })
+    .then(function(res) {
+      if (res.error) { toastError(res.error); return; }
+      loadAttachments(templateId);
+    });
+}
+
+function insertTrackingPixel() {
+  if (!monacoEditor) return;
+  var snippet = '{{tracking_pixel}}';
+  var selection = monacoEditor.getSelection();
+  monacoEditor.executeEdits('', [{ range: selection, text: snippet, forceMoveMarkers: true }]);
+  monacoEditor.focus();
+  toastInfo('Tracking pixel placeholder inserted.');
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+function closeEditorModal() {
+  document.getElementById('editorModal').classList.add('hidden');
+  var sidebar = document.getElementById('main-sidebar');
+  if (sidebar) sidebar.style.display = '';
+  if (monacoEditor) { monacoEditor.dispose(); monacoEditor = null; }
+}
+
+function initMonacoEditor(content) {
+  var container = document.getElementById('monacoEditorContainer');
+  container.innerHTML = '';
+  require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' } });
+  require(['vs/editor/editor.main'], function() {
+    monaco.editor.defineTheme('phishTheme', { base: 'vs-dark', inherit: true, rules: [], colors: { 'editor.background': '#0f172a' } });
+    monacoEditor = monaco.editor.create(container, {
+      value: content, language: 'html', theme: 'phishTheme', automaticLayout: true,
+      minimap: { enabled: false }, fontSize: 13, lineNumbers: 'on', wordWrap: 'on', scrollBeyondLastLine: false
+    });
+    monacoEditor.onDidChangeModelContent(function() { updatePreview(); });
+    updatePreview();
+  });
+}
+
+var _previewDecorations = [];
+function updatePreview() {
+  if (!monacoEditor) return;
+  var content = monacoEditor.getValue();
+
+  // Render common placeholders in the live preview so it better matches the sent email.
+  content = content
+    .replace(/\{\{\s*FirstName\s*\}\}/gi, 'John')
+    .replace(/\{\{\s*LastName\s*\}\}/gi, 'Doe')
+    .replace(/\{\{\s*Email\s*\}\}/gi, 'john.doe@example.com')
+    .replace(/\{\{\s*firstname\s*\}\}/gi, 'John')
+    .replace(/\{\{\s*lastname\s*\}\}/gi, 'Doe')
+    .replace(/\{\{\s*email\s*\}\}/gi, 'john.doe@example.com')
+    .replace(/\{\{\s*link\s*\}\}/gi, '#preview')
+    .replace(/\{\{\s*tracking_pixel\s*\}\}/gi, '');
+
+  // Replace cid: references with preview URLs so the editor live view matches sent emails.
+  content = content.replace(/src=["']cid:\s*<?([^>"']+)>?["']/gi, function(match, cid) {
+    var cleaned = (cid || '').trim();
+    if (_cidPreviewMap[cleaned]) {
+      return 'src="' + _cidPreviewMap[cleaned] + '"';
+    }
+    return match;
+  });
+
+  var frame = document.getElementById('previewFrame');
+  var doc = frame.contentDocument || frame.contentWindow.document;
+  doc.open(); doc.write(content); doc.close();
+
+  // ── Click-to-highlight: click an element in the preview to jump to it ──
+  // We inject the listener after a small tick so the document is fully settled.
+  setTimeout(function() {
+    try {
+      var fdoc = frame.contentDocument || frame.contentWindow.document;
+      if (!fdoc || !fdoc.body) return;
+
+      // Crosshair cursor + hover outline injected into the iframe
+      var style = fdoc.createElement('style');
+      style.textContent = 'body{cursor:crosshair!important}' +
+        '*:hover{outline:2px solid rgba(59,130,246,0.6)!important;outline-offset:-1px!important}';
+      fdoc.head.appendChild(style);
+
+      fdoc.body.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!monacoEditor) return;
+
+        var el = e.target;
+        var tag = el.tagName ? el.tagName.toLowerCase() : '';
+        if (!tag || tag === 'html' || tag === 'body') return;
+
+        var model = monacoEditor.getModel();
+        var fullText = model.getValue();
+        var found = -1;
+
+        // Strategy 1: match opening tag + first class/id attribute
+        if (el.className && typeof el.className === 'string' && el.className.trim()) {
+          var firstClass = el.className.trim().split(/\s+/)[0];
+          var probe = '<' + tag + ' class="' + firstClass;
+          found = fullText.indexOf(probe);
+          if (found === -1) {
+            probe = '<' + tag + ' class=\'' + firstClass;
+            found = fullText.indexOf(probe);
+          }
+        }
+
+        // Strategy 2: id attribute
+        if (found === -1 && el.id) {
+          found = fullText.indexOf('id="' + el.id + '"');
+          if (found === -1) found = fullText.indexOf("id='" + el.id + "'");
+          // walk back to find the opening <tag on that line
+        }
+
+        // Strategy 3: unique inner text snippet
+        if (found === -1) {
+          var txt = (el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 50);
+          if (txt.length > 5) found = fullText.indexOf(txt);
+        }
+
+        // Strategy 4: first occurrence of the tag
+        if (found === -1) {
+          found = fullText.indexOf('<' + tag);
+        }
+
+        if (found === -1) return;
+
+        var pos = model.getPositionAt(found);
+        var lineMax = model.getLineMaxColumn(pos.lineNumber);
+
+        // Clear old decoration, add new one
+        _previewDecorations = monacoEditor.deltaDecorations(_previewDecorations, [{
+          range: new monaco.Range(pos.lineNumber, 1, pos.lineNumber, lineMax),
+          options: {
+            isWholeLine: true,
+            className: 'preview-click-highlight',
+            overviewRuler: { color: '#3b82f6', position: monaco.editor.OverviewRulerLane.Full }
+          }
+        }]);
+
+        monacoEditor.revealLineInCenter(pos.lineNumber);
+        monacoEditor.setPosition({ lineNumber: pos.lineNumber, column: 1 });
+        monacoEditor.focus();
+
+        // Auto-clear after 2.5 s
+        setTimeout(function() {
+          _previewDecorations = monacoEditor.deltaDecorations(_previewDecorations, []);
+        }, 2500);
+      }, true); // capture phase so it fires before any link navigation
+    } catch(err) { /* sandboxed iframe — silently ignore */ }
+  }, 50);
+}
+
+function saveTemplateFromEditor() {
+  var name = document.getElementById('templateName').value.trim();
+  var subject = document.getElementById('templateSubject').value.trim();
+  if (!name || !subject) { toastWarning('Please enter template name and subject'); return; }
+  var data = {
+    name: name, subject: subject,
+    sender_name: document.getElementById('templateSenderName').value.trim(),
+    sender_email: document.getElementById('templateSenderEmail').value.trim(),
+    tags: document.getElementById('templateTags').value.trim(),
+    html_content: monacoEditor ? monacoEditor.getValue() : ''
+  };
+  var id = document.getElementById('templateId').value;
+  if (id) data.id = parseInt(id);
+  fetch('/templates/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+    .then(function(r) { return r.json(); })
+    .then(function(res) {
+      if (res.success) {
+        toastSuccess('Template saved!');
+        // Store the new template ID so image uploads work immediately
+        if (res.id) {
+          document.getElementById('templateId').value = res.id;
+          currentEditId = res.id;
+          loadCidImages(res.id);
+          loadAttachments(res.id);
+        }
+        loadTemplates();
+      }
+      else { toastError('Error: ' + (res.error || 'Unknown error')); }
+    });
+}
+
+function duplicateTemplate(id) {
+  fetch('/templates/get/' + id)
+    .then(function(r) { return r.json(); })
+    .then(function(full) {
+      var data = { name: full.name + ' (Copy)', subject: full.subject, sender_name: full.sender_name, sender_email: full.sender_email, tags: full.tags, html_content: full.html_content };
+      return fetch('/templates/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(res) { if (res.success) { toastSuccess('Template duplicated!'); loadTemplates(); } });
+}
+
+async function deleteTemplate(id) {
+  const confirmed = await showConfirm('Delete this template?', {
+    title: 'Delete Template',
+    okText: 'Delete',
+    cancelText: 'Cancel'
+  });
+  if (!confirmed) return;
+  fetch('/templates/delete/' + id, { method: 'DELETE' })
+    .then(function(r) { return r.json(); })
+    .then(function(res) { if (res.success) { toastSuccess('Template deleted!'); loadTemplates(); } });
+}
+
+function insertVariable(varName) {
+  if (!monacoEditor) return;
+  var sel = monacoEditor.getSelection();
+  monacoEditor.executeEdits('', [{ range: sel, text: '{{' + varName + '}}' }]);
+  monacoEditor.focus();
+}
+
+async function formatDoc(cmd) {
+  if (!monacoEditor) return;
+  var sel = monacoEditor.getSelection();
+  var selectedText = monacoEditor.getModel().getValueInRange(sel);
+  var newText = selectedText;
+  if (cmd === 'bold') newText = '<strong>' + selectedText + '</strong>';
+  else if (cmd === 'italic') newText = '<em>' + selectedText + '</em>';
+  else if (cmd === 'underline') newText = '<u>' + selectedText + '</u>';
+  else if (cmd === 'heading') newText = '<h2>' + selectedText + '</h2>';
+  else if (cmd === 'paragraph') newText = '<p>' + selectedText + '</p>';
+  else if (cmd === 'link') { var url = await showPrompt('Enter URL:', 'https://'); if (url) newText = '<a href="' + url + '">' + (selectedText || 'Link text') + '</a>'; }
+  else if (cmd === 'image') { var imgUrl = await showPrompt('Enter image URL:', 'https://'); if (imgUrl) newText = '<img src="' + imgUrl + '" alt="Image" style="max-width:100%;">'; }
+  else if (cmd === 'table') { newText = '<table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse;">\n  <tr><th>Header 1</th><th>Header 2</th></tr>\n  <tr><td>Cell 1</td><td>Cell 2</td></tr>\n</table>'; }
+  monacoEditor.executeEdits('', [{ range: sel, text: newText }]);
+  monacoEditor.focus();
+}
+
+function loadQuickTemplate(type) {
+  if (!monacoEditor) return;
+  var html = '';
+  if (type === 'microsoft') {
+    document.getElementById('templateName').value = 'Microsoft Password Reset';
+    document.getElementById('templateSubject').value = 'Action Required: Reset Your Password';
+    document.getElementById('templateTags').value = 'microsoft, credential';
+    html = '<!DOCTYPE html>\n<html>\n<head><meta charset="UTF-8"><title>Microsoft</title></head>\n<body style="margin:0;padding:0;background:#f4f4f4;font-family:Segoe UI,sans-serif;">\n{{tracking_pixel}}\n<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:40px 0;">\n<table width="600" style="background:#fff;border-radius:4px;"><tr><td style="padding:40px;text-align:center;background:#0078d4;border-radius:4px 4px 0 0;">\n<img src="https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg" style="height:24px;"></td></tr>\n<tr><td style="padding:40px;"><h1 style="margin:0 0 20px;font-size:24px;color:#333;">Password Reset Required</h1>\n<p style="margin:0 0 20px;color:#666;">Hi {{first_name}},</p>\n<p style="margin:0 0 20px;color:#666;">Your password will expire soon. Please reset it now.</p>\n<p style="text-align:center;"><a href="{{link}}" style="display:inline-block;padding:12px 32px;background:#0078d4;color:#fff;text-decoration:none;border-radius:4px;font-weight:600;">Reset Password</a></p>\n</td></tr></table></td></tr></table></body></html>';
+  } else if (type === 'google') {
+    document.getElementById('templateName').value = 'Google Security Alert';
+    document.getElementById('templateSubject').value = 'Security Alert: New Sign-in Detected';
+    document.getElementById('templateTags').value = 'google, security';
+    html = '<!DOCTYPE html>\n<html>\n<head><meta charset="UTF-8"><title>Google Security</title></head>\n<body style="margin:0;padding:0;background:#f5f5f5;font-family:Google Sans,Roboto,sans-serif;">\n{{tracking_pixel}}\n<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:40px 0;">\n<table width="500" style="background:#fff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.1);"><tr><td style="padding:32px;text-align:center;">\n<img src="https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_74x24dp.png" style="height:24px;margin-bottom:24px;">\n<h1 style="margin:0 0 16px;font-size:22px;color:#202124;">New sign-in detected</h1>\n<p style="margin:0 0 24px;color:#5f6368;">Hi {{first_name}}, we detected a new sign-in from an unknown device.</p>\n<a href="{{link}}" style="display:inline-block;padding:10px 24px;background:#1a73e8;color:#fff;text-decoration:none;border-radius:4px;">Review Activity</a>\n</td></tr></table></td></tr></table></body></html>';
+  } else if (type === 'hr') {
+    document.getElementById('templateName').value = 'HR Benefits Update';
+    document.getElementById('templateSubject').value = 'Important: Your Benefits Enrollment is Open';
+    document.getElementById('templateTags').value = 'hr, benefits';
+    html = '<!DOCTYPE html>\n<html>\n<head><meta charset="UTF-8"><title>HR Benefits</title></head>\n<body style="margin:0;padding:0;background:#f9fafb;font-family:Arial,sans-serif;">\n{{tracking_pixel}}\n<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:40px 20px;">\n<table width="600" style="background:#fff;border-radius:8px;border:1px solid #e5e7eb;"><tr><td style="padding:32px;background:#059669;border-radius:8px 8px 0 0;">\n<h1 style="margin:0;color:#fff;font-size:24px;">Human Resources</h1></td></tr>\n<tr><td style="padding:32px;"><p style="margin:0 0 16px;color:#374151;">Dear {{first_name}} {{last_name}},</p>\n<p style="margin:0 0 16px;color:#374151;">Open enrollment for 2025 benefits is now available.</p>\n<p style="text-align:center;"><a href="{{link}}" style="display:inline-block;padding:14px 28px;background:#059669;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;">View Benefits Portal</a></p>\n</td></tr></table></td></tr></table></body></html>';
+  }
+  monacoEditor.setValue(html);
+  updatePreview();
+}
+
+function getDefaultEmailTemplate() {
+  return '<!DOCTYPE html>\n<html>\n<head><meta charset="UTF-8"><title>Email Template</title></head>\n<body style="margin:0;padding:0;background:#f4f4f4;font-family:Arial,sans-serif;">\n{{tracking_pixel}}\n<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:40px 0;">\n<table width="600" style="background:#ffffff;border-radius:8px;"><tr><td style="padding:40px;">\n<h1 style="margin:0 0 20px;color:#333;">Hello {{first_name}},</h1>\n<p style="margin:0 0 20px;color:#666;">Your email content goes here.</p>\n<p style="text-align:center;"><a href="{{link}}" style="display:inline-block;padding:12px 32px;background:#007bff;color:#ffffff;text-decoration:none;border-radius:4px;font-weight:600;">Click Here</a></p>\n</td></tr></table></td></tr></table></body></html>';
+}
+
+function sendTestEmail() { document.getElementById('testEmailModal').classList.remove('hidden'); }
+function closeTestEmailModal() { document.getElementById('testEmailModal').classList.add('hidden'); }
+
+function confirmSendTestEmail() {
+  var email = document.getElementById('testEmailAddress').value.trim();
+  var smtpId = document.getElementById('testSmtpProfile').value;
+  if (!email) { toastWarning('Please enter a recipient email address'); return; }
+  if (!smtpId) { toastWarning('Please select an SMTP profile'); return; }
+  var templateId = document.getElementById('templateId').value;
+  var data = {
+    to_email: email,
+    smtp_profile_id: parseInt(smtpId),
+    template_id: templateId ? parseInt(templateId) : null,
+    subject: document.getElementById('templateSubject').value || 'Test Email',
+    html_content: monacoEditor ? monacoEditor.getValue() : '',
+    sender_name: document.getElementById('templateSenderName') ? document.getElementById('templateSenderName').value : '',
+    sender_email: document.getElementById('templateSenderEmail') ? document.getElementById('templateSenderEmail').value : ''
+  };
+  var btn = document.querySelector('#testEmailModal button[onclick="confirmSendTestEmail()"]');
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; }
+  fetch('/templates/send_test', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+    .then(function(r) {
+      if (!r.ok && r.status === 302) { toastError('Session expired — please log in again.'); return null; }
+      return r.json();
+    })
+    .then(function(res) {
+      if (!res) return;
+      if (res.success) { toastSuccess('Test email sent to ' + email + '!'); closeTestEmailModal(); }
+      else { toastError('Send failed: ' + (res.error || 'Unknown error')); }
+    })
+    .catch(function(err) { toastError('Request failed: ' + err.message); })
+    .finally(function() { if (btn) { btn.disabled = false; btn.textContent = 'Send Test'; } });
+}
+</script>
+{% endraw %}
+{% endblock %}
+
+{% block modals %}
+<!-- Full Screen Editor Modal -->
+<div id="editorModal" class="hidden fixed inset-0 bg-slate-50 dark:bg-slate-900 z-[9999] flex flex-col animate-fade-in">
+  <div class="h-14 glass-panel border-b border-slate-200 dark:border-white/10 flex items-center justify-between px-4 shrink-0 bg-white dark:bg-slate-900">
+    <div class="flex items-center gap-4">
+      <button onclick="closeEditorModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-2 transition-colors"><i class="fas fa-arrow-left"></i></button>
+      <span class="text-slate-900 dark:text-slate-100 font-semibold" id="editorTitle">New Template</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <button type="button" onclick="sendTestEmail()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium btn-hover shadow-lg shadow-blue-900/20"><i class="fas fa-paper-plane mr-2"></i> Send Test</button>
+      <button type="button" onclick="saveTemplateFromEditor()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-medium shadow-lg shadow-emerald-900/20 btn-hover"><i class="fas fa-save mr-2"></i> Save Template</button>
+    </div>
+  </div>
+  <div class="flex-1 flex min-h-0">
+    <!-- Left Sidebar -->
+    <div class="w-80 glass-panel border-r border-slate-200 dark:border-white/10 flex flex-col shrink-0 overflow-y-auto bg-white dark:bg-slate-900">
+      <div class="p-4 space-y-4">
+        <input type="hidden" id="templateId" value="">
+        <div class="space-y-2">
+          <label class="text-slate-700 dark:text-slate-300 text-sm font-medium">Template Name *</label>
+          <input type="text" id="templateName" placeholder="e.g., Microsoft Password Reset" class="w-full glass-panel border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-blue-500 input-focus bg-white dark:bg-transparent">
+        </div>
+        <div class="space-y-2">
+          <label class="text-slate-700 dark:text-slate-300 text-sm font-medium">Email Subject *</label>
+          <input type="text" id="templateSubject" placeholder="e.g., Action Required: Reset Your Password" class="w-full glass-panel border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-blue-500 input-focus bg-white dark:bg-transparent">
+        </div>
+        <div class="space-y-2">
+          <label class="text-slate-700 dark:text-slate-300 text-sm font-medium">Sender Name</label>
+          <input type="text" id="templateSenderName" placeholder="e.g., IT Support" class="w-full glass-panel border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-blue-500 input-focus bg-white dark:bg-transparent">
+        </div>
+        <div class="space-y-2">
+          <label class="text-slate-700 dark:text-slate-300 text-sm font-medium">Sender Email</label>
+          <input type="email" id="templateSenderEmail" placeholder="e.g., support@company.com" class="w-full glass-panel border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-blue-500 input-focus bg-white dark:bg-transparent">
+        </div>
+        <div class="space-y-2">
+          <label class="text-slate-700 dark:text-slate-300 text-sm font-medium">Tags</label>
+          <input type="text" id="templateTags" placeholder="e.g., microsoft, credential" class="w-full glass-panel border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-blue-500 input-focus bg-white dark:bg-transparent">
+          <p class="text-slate-500 text-xs">Comma-separated</p>
+        </div>
+        <div class="border-t border-slate-200 dark:border-white/10 pt-4">
+          <p class="text-slate-500 dark:text-slate-400 text-xs font-medium mb-3 uppercase tracking-wider">Insert Variable</p>
+          <div class="grid grid-cols-2 gap-2">
+            <button type="button" onclick="insertVariable('first_name')" class="px-2 py-1.5 glass-panel hover:bg-slate-100 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300 rounded text-xs text-left transition-colors border border-slate-200 dark:border-white/10"><i class="fas fa-user mr-1"></i> First Name</button>
+            <button type="button" onclick="insertVariable('last_name')" class="px-2 py-1.5 glass-panel hover:bg-slate-100 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300 rounded text-xs text-left transition-colors border border-slate-200 dark:border-white/10"><i class="fas fa-user mr-1"></i> Last Name</button>
+            <button type="button" onclick="insertVariable('email')" class="px-2 py-1.5 glass-panel hover:bg-slate-100 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300 rounded text-xs text-left transition-colors border border-slate-200 dark:border-white/10"><i class="fas fa-envelope mr-1"></i> Email</button>
+            <button type="button" onclick="insertVariable('company')" class="px-2 py-1.5 glass-panel hover:bg-slate-100 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300 rounded text-xs text-left transition-colors border border-slate-200 dark:border-white/10"><i class="fas fa-building mr-1"></i> Company</button>
+            <button type="button" onclick="insertVariable('position')" class="px-2 py-1.5 glass-panel hover:bg-slate-100 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300 rounded text-xs text-left transition-colors border border-slate-200 dark:border-white/10"><i class="fas fa-id-badge mr-1"></i> Position</button>
+            <button type="button" onclick="insertVariable('link')" class="px-2 py-1.5 bg-rose-50 dark:bg-rose-700/20 hover:bg-rose-100 dark:hover:bg-rose-700/30 text-rose-600 dark:text-rose-300 border border-rose-200 dark:border-rose-700/30 rounded text-xs text-left transition-colors"><i class="fas fa-link mr-1"></i> Phish Link</button>
+            <button type="button" onclick="insertVariable('tracking_pixel')" class="px-2 py-1.5 bg-rose-50 dark:bg-rose-700/20 hover:bg-rose-100 dark:hover:bg-rose-700/30 text-rose-600 dark:text-rose-300 border border-rose-200 dark:border-rose-700/30 rounded text-xs text-left transition-colors"><i class="fas fa-eye mr-1"></i> Track Pixel</button>
+          </div>
+        </div>
+        <div class="border-t border-slate-200 dark:border-white/10 pt-4">
+          <p class="text-slate-500 dark:text-slate-400 text-xs font-medium mb-3 uppercase tracking-wider">Quick Templates</p>
+          <div class="space-y-2">
+            <button type="button" onclick="loadQuickTemplate('microsoft')" class="w-full px-3 py-2 glass-panel hover:bg-slate-100 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300 rounded text-sm text-left transition-colors border border-slate-200 dark:border-white/10"><i class="fab fa-microsoft mr-2"></i> Microsoft Password Reset</button>
+            <button type="button" onclick="loadQuickTemplate('google')" class="w-full px-3 py-2 glass-panel hover:bg-slate-100 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300 rounded text-sm text-left transition-colors border border-slate-200 dark:border-white/10"><i class="fab fa-google mr-2"></i> Google Security Alert</button>
+            <button type="button" onclick="loadQuickTemplate('hr')" class="w-full px-3 py-2 glass-panel hover:bg-slate-100 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300 rounded text-sm text-left transition-colors border border-slate-200 dark:border-white/10"><i class="fas fa-users mr-2"></i> HR Benefits Update</button>
+          </div>
+        </div>
+
+        <!-- ── CID Image Manager ───────────────────────────────────────── -->
+        <div class="border-t border-slate-200 dark:border-white/10 pt-4">
+          <div class="flex items-center justify-between mb-3">
+            <p class="text-slate-500 dark:text-slate-400 text-xs font-medium uppercase tracking-wider">
+              <i class="fas fa-paperclip mr-1"></i> Embedded Images (CID)
+            </p>
+            <label id="cidUploadBtn" class="cursor-pointer px-2 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs font-medium transition-colors flex items-center gap-1"
+                   title="Upload an image to embed via CID. Save the template first to get its ID.">
+              <i class="fas fa-plus"></i> Add
+              <input type="file" id="cidImageInput" accept="image/*" class="hidden" onchange="uploadCidImage(this)">
+            </label>
+          </div>
+          <p class="text-slate-500 dark:text-slate-400 text-xs mb-3">
+            Use <code class="bg-slate-100 dark:bg-white/10 px-1 rounded">&lt;img src="cid:<em>name</em>"&gt;</code> in your HTML. These images are embedded inside the email so they are never blocked by mail clients.
+          </p>
+          <div id="cidImageList" class="space-y-2"></div>
+          <p id="cidNoImages" class="text-slate-400 text-xs italic">No images yet. Save the template first, then upload images.</p>
+        </div>
+
+        <!-- ── Hosted Image Library (https:// URLs) ─────────────────────── -->
+        <div class="border-t border-slate-200 dark:border-white/10 pt-4">
+          <div class="flex items-center justify-between mb-3">
+            <p class="text-slate-500 dark:text-slate-400 text-xs font-medium uppercase tracking-wider">
+              <i class="fas fa-globe mr-1"></i> Hosted Images (URL)
+            </p>
+            <label class="cursor-pointer px-2 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-medium transition-colors flex items-center gap-1"
+                   title="Upload an image and get a public https:// URL to use in any email client.">
+              <i class="fas fa-plus"></i> Upload
+              <input type="file" id="hostedImageInput" accept="image/*" class="hidden" onchange="uploadHostedImage(this)">
+            </label>
+          </div>
+          <p class="text-slate-500 dark:text-slate-400 text-xs mb-3">
+            Images are served by this server. Use a plain <code class="bg-slate-100 dark:bg-white/10 px-1 rounded">https://</code> URL — works in every mail client.
+          </p>
+          <div id="hostedImageList" class="space-y-2">
+            <p class="text-slate-400 text-xs italic" id="hostedImagesLoading">Loading...</p>
+          </div>
+        </div>
+
+        <!-- ── File Attachments (PDF, DOCX, etc.) ───────────────────────── -->
+        <div class="border-t border-slate-200 dark:border-white/10 pt-4">
+          <div class="flex items-center justify-between mb-3">
+            <p class="text-slate-500 dark:text-slate-400 text-xs font-medium uppercase tracking-wider">
+              <i class="fas fa-paperclip mr-1"></i> Attachments
+            </p>
+            <label class="cursor-pointer px-2 py-1 bg-violet-600 hover:bg-violet-500 text-white rounded text-xs font-medium transition-colors flex items-center gap-1"
+                   title="Attach a file (PDF, DOCX, XLSX…) — max 10 MB. Save template first.">
+              <i class="fas fa-plus"></i> Attach
+              <input type="file" id="attachmentInput" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.png,.jpg" class="hidden" onchange="uploadAttachment(this)">
+            </label>
+          </div>
+          <p class="text-slate-500 dark:text-slate-400 text-xs mb-3">
+            Files are attached to every email sent with this template (PDF, DOCX, etc. — max 10 MB each).
+          </p>
+          <div id="attachmentList" class="space-y-2">
+            <p class="text-slate-400 text-xs italic" id="attachmentNoItems">Save the template first, then add attachments.</p>
+          </div>
+        </div>
+
+        <!-- ── Open Tracking tip ────────────────────────────────────────── -->
+        <div class="border-t border-slate-200 dark:border-white/10 pt-4">
+          <p class="text-slate-500 dark:text-slate-400 text-xs font-medium uppercase tracking-wider mb-2">
+            <i class="fas fa-eye mr-1"></i> Open Tracking
+          </p>
+          <p class="text-slate-500 dark:text-slate-400 text-xs">
+            Email opens are tracked automatically. Add this tag anywhere in your HTML to enable it:
+          </p>
+          <button onclick="insertTrackingPixel()" class="mt-2 w-full text-left bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded px-2 py-1.5 font-mono text-xs text-blue-500 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors" title="Click to insert at cursor">
+            {{ "{{" }}tracking_pixel{{ "}}" }}
+          </button>
+          <p class="text-slate-400 text-xs mt-1">Click the tag above to insert it at the cursor position.</p>
+        </div>
+
+      </div>
+    </div>
+    <!-- Editor Area -->
+    <div class="flex-1 flex flex-col min-w-0">
+      <div class="h-10 glass-panel border-b border-slate-200 dark:border-white/10 flex items-center px-2 gap-1 shrink-0 bg-white dark:bg-slate-900">
+        <button type="button" onclick="formatDoc('bold')" class="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 rounded transition-colors" title="Bold"><i class="fas fa-bold"></i></button>
+        <button type="button" onclick="formatDoc('italic')" class="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 rounded transition-colors" title="Italic"><i class="fas fa-italic"></i></button>
+        <button type="button" onclick="formatDoc('underline')" class="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 rounded transition-colors" title="Underline"><i class="fas fa-underline"></i></button>
+        <div class="w-px h-5 bg-slate-200 dark:bg-white/10 mx-1"></div>
+        <button type="button" onclick="formatDoc('heading')" class="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 rounded transition-colors" title="Heading"><i class="fas fa-heading"></i></button>
+        <button type="button" onclick="formatDoc('paragraph')" class="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 rounded transition-colors" title="Paragraph"><i class="fas fa-paragraph"></i></button>
+        <div class="w-px h-5 bg-slate-200 dark:bg-white/10 mx-1"></div>
+        <button type="button" onclick="formatDoc('link')" class="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 rounded transition-colors" title="Insert Link"><i class="fas fa-link"></i></button>
+        <button type="button" onclick="formatDoc('image')" class="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 rounded transition-colors" title="Insert Image"><i class="fas fa-image"></i></button>
+        <button type="button" onclick="formatDoc('table')" class="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 rounded transition-colors" title="Insert Table"><i class="fas fa-table"></i></button>
+      </div>
+      <div class="flex-1 flex min-h-0">
+        <div class="w-1/2 flex flex-col border-r border-slate-200 dark:border-white/10">
+          <div class="h-8 glass-panel border-b border-slate-200 dark:border-white/10 flex items-center px-3 bg-slate-50 dark:bg-slate-900">
+            <span class="text-slate-500 dark:text-slate-400 text-xs font-medium uppercase tracking-wider">HTML Code</span>
+          </div>
+          <div id="monacoEditorContainer" class="flex-1"></div>
+        </div>
+        <div class="w-1/2 flex flex-col">
+          <div class="h-8 glass-panel border-b border-slate-200 dark:border-white/10 flex items-center px-3 bg-slate-50 dark:bg-slate-900">
+            <span class="text-slate-500 dark:text-slate-400 text-xs font-medium uppercase tracking-wider">Live Preview</span>
+            <span class="text-slate-400 dark:text-slate-500 text-xs ml-2" title="Click any element in the preview to jump to it in the editor">
+              <i class="fas fa-mouse-pointer"></i> click to jump
+            </span>
+          </div>
+          <div class="flex-1 bg-white overflow-auto">
+            <iframe id="previewFrame" class="w-full h-full border-0"></iframe>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Test Email Modal — z must exceed editor modal (z-[9999]) -->
+<div id="testEmailModal" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[99999] flex items-center justify-center p-4 animate-fade-in">
+  <div class="glass-card rounded-xl shadow-2xl w-full max-w-md border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900">
+    <div class="p-6 border-b border-slate-200 dark:border-white/10"><h3 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Send Test Email</h3></div>
+    <div class="p-6 space-y-4">
+      <div>
+        <label class="text-slate-700 dark:text-slate-300 text-sm font-medium">Recipient Email *</label>
+        <input type="email" id="testEmailAddress" placeholder="your@email.com" class="w-full mt-1 glass-panel border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-blue-500 input-focus bg-white dark:bg-transparent">
+      </div>
+      <div>
+        <label class="text-slate-700 dark:text-slate-300 text-sm font-medium">SMTP Profile *</label>
+        <select id="testSmtpProfile" class="w-full mt-1 glass-panel border border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-blue-500 input-focus bg-white dark:bg-transparent">
+          <option value="" class="bg-white dark:bg-slate-900">Select SMTP Profile</option>
+        </select>
+      </div>
+    </div>
+    <div class="p-6 border-t border-slate-200 dark:border-white/10 flex justify-end gap-3">
+      <button onclick="closeTestEmailModal()" class="px-4 py-2 text-slate-500 dark:text-slate-300 hover:text-slate-700 dark:hover:text-slate-100 transition-colors">Cancel</button>
+      <button onclick="confirmSendTestEmail()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium btn-hover shadow-lg shadow-blue-900/20">Send Test</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
