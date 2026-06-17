@@ -1,9 +1,7 @@
 # PhishSim - Open Source Phishing Simulation Platform
 
 ## 📖 Background & Purpose
-My organisation needed a flexible tool to run our internal security simulations and raise employee awareness about phishing. However, we did not have the funds to purchase an expensive commercial solution. So, we built **PhishSim**! 
-
-PhishSim provides all the core features needed to run sophisticated phishing campaigns, track email opens and link clicks, securely harvest credentials for training purposes, and educate employees all in a completely open-source package.
+**PhishSim!** is a flexible, open-source phishing simulation tool designed to help teams run internal security awareness campaigns. Built as a cost-effective alternative to expensive commercial solutions, it provides core features to track email opens, monitor link clicks, safely simulate credential harvesting for training, and educate users.
 
 ## 📸 Application Overview
 
